@@ -19,6 +19,7 @@ import {
   savePracticeDraft,
   savePracticeDrafts
 } from "./practice-drafts.js";
+import { maxPrintColumns, printPageRule } from "./print-layout.js";
 import { createInitialState } from "./state.js";
 import {
   hasStandardAnswer,
@@ -27,6 +28,7 @@ import {
   saveStandardAnswers
 } from "./standard-answers.js";
 import { createTagStore } from "./tags.js";
+import { nextHorizontalTabKey } from "./tab-order.js";
 import { createBlankExercise } from "./worksheet.js";
 
 const BOOKS = books();
@@ -62,6 +64,7 @@ function showStartupError(error) {
 }
 
 function render() {
+  applyPrintOrientation();
   app.innerHTML = `
     <div class="shell ${state.printMode ? "is-print-mode" : ""} is-${state.pageOrientation}">
       ${renderToolbar()}
@@ -130,7 +133,7 @@ function renderEmptyPage() {
 }
 
 function renderVerse(verse) {
-  const segments = wrapVerse(verse, { maxColumns: state.printMode ? 7 : 6 });
+  const segments = wrapVerse(verse, { maxColumns: state.printMode ? maxPrintColumns(state.pageOrientation) : 6 });
   const standardAnswer = state.standardAnswers[verse.reference];
   const hasAnswer = hasStandardAnswer(state.standardAnswers, verse.reference);
   const isExpanded = Boolean(state.expandedStandardAnswers[verse.reference]);
@@ -198,10 +201,10 @@ function renderSegment(verse, segment) {
     const selected = state.selected.verseId === verse.id && state.selected.wordIndex === index;
     return `
       <div class="word-column ${selected ? "selected" : ""}" style="--chars:${columnSize(word, verse, index)}" data-word-index="${index}" data-verse-id="${verse.id}">
-        <input class="syntax-input" value="${escapeAttr(segment.syntax[offset])}" data-row="syntax" data-index="${index}" data-verse-id="${verse.id}" aria-label="syntax for ${word}">
+        <input class="syntax-input" value="${escapeAttr(segment.syntax[offset])}" data-row="syntax" data-index="${index}" data-verse-id="${verse.id}" data-tab-key="${escapeAttr(tabKey(verse.id, "syntax", index))}" aria-label="syntax for ${word}">
         <button class="greek-word" data-action="select-word" data-index="${index}" data-verse-id="${verse.id}">${escapeHtml(word)}</button>
-        <input value="${escapeAttr(segment.morphology[offset])}" data-row="morphology" data-index="${index}" data-verse-id="${verse.id}" aria-label="morphology for ${word}">
-        <input value="${escapeAttr(segment.gloss[offset])}" data-row="gloss" data-index="${index}" data-verse-id="${verse.id}" aria-label="gloss for ${word}">
+        <input value="${escapeAttr(segment.morphology[offset])}" data-row="morphology" data-index="${index}" data-verse-id="${verse.id}" data-tab-key="${escapeAttr(tabKey(verse.id, "morphology", index))}" aria-label="morphology for ${word}">
+        <input value="${escapeAttr(segment.gloss[offset])}" data-row="gloss" data-index="${index}" data-verse-id="${verse.id}" data-tab-key="${escapeAttr(tabKey(verse.id, "gloss", index))}" aria-label="gloss for ${word}">
       </div>
     `;
   }).join("");
@@ -221,7 +224,7 @@ function renderSegment(verse, segment) {
         <label class="translation-line">
           <b>5</b>
           <span>整句翻譯</span>
-          <input value="${escapeAttr(segment.translation)}" data-row="translation" data-verse-id="${verse.id}">
+          <input value="${escapeAttr(segment.translation)}" data-row="translation" data-verse-id="${verse.id}" data-tab-key="${escapeAttr(tabKey(verse.id, "translation"))}">
         </label>
       ` : ""}
     </section>
@@ -378,6 +381,7 @@ function bindEvents() {
         : updateVerseCell(verse, row, index, event.currentTarget.value));
       persistActiveDraft();
     });
+    input.addEventListener("keydown", handleInputKeydown);
   });
 
   const lessonNameInput = app.querySelector("[data-lesson-name]");
@@ -406,6 +410,33 @@ function bindEvents() {
       state.activeTool = event.currentTarget.dataset.tab;
       render();
     });
+  });
+}
+
+function handleInputKeydown(event) {
+  if (event.key !== "Tab" || event.altKey || event.ctrlKey || event.metaKey) return;
+  const currentKey = event.currentTarget.dataset.tabKey;
+  if (!currentKey) return;
+
+  const inputs = horizontalTabInputs();
+  const orderedKeys = inputs.map((input) => input.dataset.tabKey);
+  const nextKey = nextHorizontalTabKey(currentKey, orderedKeys, { backwards: event.shiftKey });
+  if (!nextKey) return;
+
+  const target = inputs.find((input) => input.dataset.tabKey === nextKey);
+  if (!target) return;
+  event.preventDefault();
+  target.focus();
+  target.select();
+}
+
+function horizontalTabInputs() {
+  const rows = ["syntax", "morphology", "gloss"];
+  return Array.from(app.querySelectorAll(".verse-block")).flatMap((block) => {
+    const parsingInputs = rows.flatMap((row) => Array.from(block.querySelectorAll(`input[data-row="${row}"]`))
+      .sort((left, right) => Number(left.dataset.index) - Number(right.dataset.index)));
+    const translation = block.querySelector('input[data-row="translation"]');
+    return translation ? [...parsingInputs, translation] : parsingInputs;
   });
 }
 
@@ -596,7 +627,7 @@ function applyPrintOrientation() {
     style.id = "print-orientation";
     document.head.appendChild(style);
   }
-  style.textContent = `@page { size: A4 ${state.pageOrientation}; margin: 10mm; }`;
+  style.textContent = printPageRule(state.pageOrientation);
 }
 
 function saveCurrentLesson() {
@@ -701,6 +732,10 @@ function columnSize(word, verse, index) {
 
 function escapeAttr(value) {
   return escapeHtml(value);
+}
+
+function tabKey(verseId, row, index = "") {
+  return `${verseId}:${row}:${index}`;
 }
 
 function createId() {

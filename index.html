@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Koine Greek Parsing</title>
-    <link rel="stylesheet" href="src/styles.css?v=20260510-row-label-gutter">
+    <link rel="stylesheet" href="src/styles.css?v=20260513-print-layout">
   </head>
   <body>
     <div id="app">
@@ -30,7 +30,7 @@
           if (fallbackStarted || document.documentElement.getAttribute("data-app-ready") === "true") return;
           fallbackStarted = true;
           var script = document.createElement("script");
-          script.src = "src/app-standalone.js?v=20260510-row-label-gutter";
+          script.src = "src/app-standalone.js?v=20260513-print-layout";
           script.onerror = function () {
             showStartupMessage("App 尚未完成載入", "瀏覽器沒有成功載入 fallback script。");
           };
@@ -59,6 +59,6 @@
         }, 4500);
       }());
     </script>
-    <script type="module" src="src/app.js?v=20260510-row-label-gutter"></script>
+    <script type="module" src="src/app.js?v=20260513-print-layout"></script>
   </body>
 </html>

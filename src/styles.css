@@ -645,15 +645,37 @@ dd {
     box-shadow: none;
     min-height: auto;
     padding: 12mm;
-    width: auto;
+    max-width: 100%;
+    overflow: visible;
+    width: 100%;
+  }
+
+  .segment-body {
+    max-width: 100%;
+  }
+
+  .word-grid {
+    flex-wrap: wrap;
+    overflow: visible;
+  }
+
+  .word-column {
+    flex: 0 1 calc((100% - 42px) / 7);
+    min-width: 72px;
+  }
+
+  .greek-word {
+    line-height: 1.1;
+    overflow-wrap: anywhere;
+    white-space: normal;
+  }
+
+  .word-column input {
+    font-size: 11px;
+    width: 100%;
   }
 
   .verse-title button {
     display: none;
-  }
-
-  @page {
-    size: A4 landscape;
-    margin: 10mm;
   }
 }
