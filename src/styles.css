@@ -661,13 +661,14 @@ dd {
 
   .word-column {
     flex: 0 1 calc((100% - 42px) / 7);
-    min-width: 72px;
+    min-width: max(72px, calc(var(--chars) * 10px + 22px));
   }
 
   .greek-word {
     line-height: 1.1;
-    overflow-wrap: anywhere;
-    white-space: normal;
+    overflow-wrap: normal;
+    white-space: nowrap;
+    word-break: normal;
   }
 
   .word-column input {

@@ -7,3 +7,10 @@ test("print word columns wrap without stretching a single final word across the 
 
   assert.match(css, /\.word-column\s*\{[^}]*flex:\s*0 1 calc\(\(100% - 42px\) \/ 7\);/s);
 });
+
+test("print Greek words stay on one line inside their word column", () => {
+  const css = readFileSync(new URL("../src/styles.css", import.meta.url), "utf8");
+
+  assert.match(css, /@media print\s*\{[\s\S]*\.greek-word\s*\{[^}]*white-space:\s*nowrap;[\s\S]*?\}/);
+  assert.doesNotMatch(css, /@media print\s*\{[\s\S]*\.greek-word\s*\{[^}]*overflow-wrap:\s*anywhere;/);
+});
