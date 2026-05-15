@@ -28,7 +28,8 @@ import {
   saveStandardAnswers
 } from "./standard-answers.js";
 import { createTagStore } from "./tags.js";
-import { nextHorizontalTabKey } from "./tab-order.js";
+import { nextArrowKey, nextHorizontalTabKey } from "./tab-order.js";
+import { GREEK_TEXT_SOURCE } from "./text-source.js";
 import { createBlankExercise } from "./worksheet.js";
 
 const BOOKS = books();
@@ -39,6 +40,7 @@ state.lexiconLookup = { key: "", status: "idle", result: null };
 state.lessons = loadLessons();
 state.standardAnswers = loadStandardAnswers();
 state.practiceDrafts = loadPracticeDrafts();
+state.lastKeyboardWordIndex = 0;
 
 const app = document.querySelector("#app");
 
@@ -75,6 +77,7 @@ function render() {
               <div>
                 <p class="eyebrow">Koine Greek Parsing</p>
                 <h1>五行分析練習</h1>
+                <p class="text-source">${escapeHtml(GREEK_TEXT_SOURCE)}</p>
               </div>
               <span>A4</span>
             </header>
@@ -414,6 +417,11 @@ function bindEvents() {
 }
 
 function handleInputKeydown(event) {
+  rememberKeyboardWordIndex(event.currentTarget);
+  if (isArrowKey(event.key) && !event.altKey && !event.ctrlKey && !event.metaKey) {
+    moveByArrowKey(event);
+    return;
+  }
   if (event.key !== "Tab" || event.altKey || event.ctrlKey || event.metaKey) return;
   const currentKey = event.currentTarget.dataset.tabKey;
   if (!currentKey) return;
@@ -428,6 +436,36 @@ function handleInputKeydown(event) {
   event.preventDefault();
   target.focus();
   target.select();
+}
+
+function moveByArrowKey(event) {
+  const currentKey = event.currentTarget.dataset.tabKey;
+  const verseId = event.currentTarget.dataset.verseId;
+  const verse = state.verses.find((item) => item.id === verseId);
+  if (!currentKey || !verse) return;
+
+  const nextKey = nextArrowKey(currentKey, event.key, {
+    wordCount: verse.words.length,
+    fallbackIndex: state.lastKeyboardWordIndex
+  });
+  if (!nextKey) return;
+
+  const target = horizontalTabInputs().find((input) => input.dataset.tabKey === nextKey);
+  if (!target) return;
+  event.preventDefault();
+  target.focus();
+  target.select();
+  rememberKeyboardWordIndex(target);
+}
+
+function rememberKeyboardWordIndex(input) {
+  if (input.dataset.index == null) return;
+  const index = Number(input.dataset.index);
+  if (Number.isFinite(index)) state.lastKeyboardWordIndex = index;
+}
+
+function isArrowKey(key) {
+  return key === "ArrowLeft" || key === "ArrowRight" || key === "ArrowUp" || key === "ArrowDown";
 }
 
 function horizontalTabInputs() {
