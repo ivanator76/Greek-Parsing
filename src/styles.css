@@ -446,6 +446,9 @@ h1 {
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 8px;
+  max-height: calc(100vh - 102px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 16px;
   position: sticky;
   top: 80px;
@@ -695,6 +698,8 @@ dd {
   }
 
   .side-panel {
+    max-height: none;
+    overflow: visible;
     position: static;
   }
 }
