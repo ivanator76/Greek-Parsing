@@ -30,7 +30,9 @@ export function clearVerseAnswers(verse) {
   return createBlankExercise({
     id: verse.id,
     reference: verse.reference,
-    greek: verse.greek
+    greek: verse.greek,
+    lineBreaks: verse.lineBreaks,
+    lineTranslations: verse.lineTranslations
   });
 }
 

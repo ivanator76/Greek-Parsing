@@ -29,19 +29,23 @@ function verse(reference = "Heb 3:7") {
     syntax: ["S", "V", "D", "N"],
     morphology: ["ADV", "VIPA3S", "DNNS", "NNNS"],
     gloss: ["照著", "說", "這", "靈"],
-    translation: "聖靈如此說"
+    translation: "聖靈如此說",
+    lineBreaks: [1],
+    lineTranslations: { 0: "照著他說", 2: "這靈" }
   };
 }
 
-test("createPracticeDraft stores answer rows by verse reference", () => {
+test("createPracticeDraft stores answer rows and manual line breaks by verse reference", () => {
   const draft = createPracticeDraft("lesson-1", [verse()], "2026-05-10T00:00:00.000Z");
 
   assert.equal(draft.lessonId, "lesson-1");
   assert.deepEqual(draft.answers["Heb 3:7"].syntax, ["S", "V", "D", "N"]);
   assert.equal(draft.answers["Heb 3:7"].translation, "聖靈如此說");
+  assert.deepEqual(draft.layout["Heb 3:7"].lineBreaks, [1]);
+  assert.deepEqual(draft.layout["Heb 3:7"].lineTranslations, { 0: "照著他說", 2: "這靈" });
 });
 
-test("applyPracticeDraft restores saved answers onto freshly loaded lesson verses", () => {
+test("applyPracticeDraft restores saved answers and manual line breaks onto freshly loaded lesson verses", () => {
   const blank = createBlankExercise({
     id: "fresh-id",
     reference: "Heb 3:7",
@@ -53,6 +57,8 @@ test("applyPracticeDraft restores saved answers onto freshly loaded lesson verse
   assert.equal(restored.id, "fresh-id");
   assert.deepEqual(restored.syntax, ["S", "V", "D", "N"]);
   assert.equal(restored.translation, "聖靈如此說");
+  assert.deepEqual(restored.lineBreaks, [1]);
+  assert.deepEqual(restored.lineTranslations, { 0: "照著他說", 2: "這靈" });
 });
 
 test("savePracticeDraft overwrites the draft for one lesson without touching others", () => {

@@ -14,3 +14,11 @@ test("print Greek words stay on one line inside their word column", () => {
   assert.match(css, /@media print\s*\{[\s\S]*\.greek-word\s*\{[^}]*white-space:\s*nowrap;[\s\S]*?\}/);
   assert.doesNotMatch(css, /@media print\s*\{[\s\S]*\.greek-word\s*\{[^}]*overflow-wrap:\s*anywhere;/);
 });
+
+test("line break controls are only visible while reflow mode is active", () => {
+  const css = readFileSync(new URL("../src/styles.css", import.meta.url), "utf8");
+
+  assert.match(css, /\.line-break-toggle\s*\{[^}]*display:\s*none;/s);
+  assert.match(css, /\.is-reflow-mode\s+\.line-break-toggle\s*\{[^}]*display:\s*inline-flex;/s);
+  assert.match(css, /@media print\s*\{[\s\S]*\.line-break-toggle\s*\{[^}]*display:\s*none\s*!important;/);
+});

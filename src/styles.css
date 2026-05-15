@@ -9,6 +9,10 @@
   --accent: #c8842d;
   --accent-soft: #fff2df;
   --blue: #3d627d;
+  --column-gap: 4px;
+  --greek-font-size: 20px;
+  --input-height: 27px;
+  --word-min-factor: 9px;
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC", sans-serif;
 }
 
@@ -266,8 +270,33 @@ h1 {
   align-items: start;
   display: flex;
   flex-wrap: nowrap;
-  gap: 7px;
+  gap: var(--column-gap);
   min-width: 0;
+}
+
+.line-break-toggle {
+  align-self: center;
+  background: #f8fafb;
+  border-color: #dbe1e7;
+  color: #8a95a1;
+  display: none;
+  font-size: 13px;
+  min-height: 26px;
+  min-width: 24px;
+  padding: 0;
+}
+
+.is-reflow-mode .line-break-toggle {
+  align-items: center;
+  display: inline-flex;
+  justify-content: center;
+}
+
+.line-break-toggle.active {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: #7a4c17;
+  font-weight: 800;
 }
 
 .row-label-column {
@@ -276,7 +305,7 @@ h1 {
   font-size: 12px;
   font-weight: 800;
   gap: 4px;
-  grid-template-rows: 27px 30px 27px 27px;
+  grid-template-rows: var(--input-height) calc(var(--input-height) + 3px) var(--input-height) var(--input-height);
   line-height: 1;
   padding: 4px 0;
   text-align: center;
@@ -292,7 +321,7 @@ h1 {
   border-radius: 8px;
   display: grid;
   gap: 4px;
-  min-width: calc(var(--chars) * 9px + 18px);
+  min-width: calc(var(--chars) * var(--word-min-factor) + 18px);
   padding: 4px;
 }
 
@@ -304,7 +333,7 @@ h1 {
 .word-column input {
   border: 1px solid #dbe1e7;
   border-radius: 5px;
-  height: 27px;
+  height: var(--input-height);
   min-width: 0;
   padding: 2px 5px;
   text-align: center;
@@ -322,8 +351,8 @@ h1 {
   border-radius: 4px;
   color: #111820;
   font-family: "Times New Roman", "Noto Serif", serif;
-  font-size: 20px;
-  min-height: 30px;
+  font-size: var(--greek-font-size);
+  min-height: calc(var(--input-height) + 3px);
   padding: 0 3px;
   text-align: center;
 }
@@ -424,7 +453,45 @@ h1 {
 
 .side-panel h2 {
   font-size: 18px;
+  margin-bottom: 8px;
+}
+
+.density-control {
+  background: #fff;
+  border: 1px solid #dfe5eb;
+  border-radius: 8px;
+  display: grid;
+  gap: 8px;
   margin-bottom: 12px;
+  padding: 10px 12px;
+}
+
+.density-control-heading {
+  align-items: center;
+  color: var(--muted);
+  display: flex;
+  font-size: 12px;
+  font-weight: 700;
+  justify-content: space-between;
+}
+
+.density-control-heading strong {
+  color: var(--blue);
+  font-size: 13px;
+}
+
+.density-control input[type="range"] {
+  accent-color: var(--blue);
+  margin: 0;
+  width: 100%;
+}
+
+.density-scale {
+  color: var(--muted);
+  display: flex;
+  font-size: 11px;
+  font-weight: 700;
+  justify-content: space-between;
 }
 
 .tabs {
@@ -638,8 +705,9 @@ dd {
   }
 
   .toolbar,
-  .side-panel {
-    display: none;
+  .side-panel,
+  .line-break-toggle {
+    display: none !important;
   }
 
   .workspace,
@@ -668,7 +736,7 @@ dd {
 
   .word-column {
     flex: 0 1 calc((100% - 42px) / 7);
-    min-width: max(72px, calc(var(--chars) * 10px + 22px));
+    min-width: max(72px, calc(var(--chars) * var(--word-min-factor) + 22px));
   }
 
   .greek-word {
@@ -686,4 +754,17 @@ dd {
   .verse-title button {
     display: none;
   }
+}
+.density-loose {
+  --column-gap: 7px;
+  --greek-font-size: 22px;
+  --input-height: 29px;
+  --word-min-factor: 10px;
+}
+
+.density-compact {
+  --column-gap: 3px;
+  --greek-font-size: 18px;
+  --input-height: 25px;
+  --word-min-factor: 8px;
 }

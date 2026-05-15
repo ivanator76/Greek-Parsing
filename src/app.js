@@ -1,4 +1,10 @@
-import { updateVerseCell, updateVerseGreek, wrapVerse } from "./layout.js";
+import {
+  toggleLineBreakAfter,
+  updateVerseCell,
+  updateVerseGreek,
+  updateVerseLineTranslation,
+  wrapVerse
+} from "./layout.js";
 import { escapeHtml } from "./escape.js";
 import { preferredVerseIdForEditing } from "./focused-verse.js";
 import {
@@ -20,7 +26,7 @@ import {
   savePracticeDraft,
   savePracticeDrafts
 } from "./practice-drafts.js";
-import { maxPrintColumns, printPageRule } from "./print-layout.js";
+import { maxEditColumns, maxPrintColumns, normalizeLayoutDensity, printPageRule } from "./print-layout.js";
 import { createInitialState } from "./state.js";
 import {
   hasStandardAnswer,
@@ -35,6 +41,12 @@ import { createBlankExercise } from "./worksheet.js";
 
 const BOOKS = books();
 const DEFAULT_TAGS = ["S", "V+N", "V+G", "V+D", "V+A", "Prp", "NP+G", "V+IP", "PP~Adj", "PP~Adv"];
+const DENSITY_OPTIONS = ["loose", "standard", "compact"];
+const DENSITY_LABELS = {
+  loose: "寬鬆",
+  standard: "標準",
+  compact: "緊密"
+};
 const tagStore = createTagStore(DEFAULT_TAGS);
 const state = createInitialState();
 state.lexiconLookup = { key: "", status: "idle", result: null };
@@ -69,7 +81,7 @@ function showStartupError(error) {
 function render() {
   applyPrintOrientation();
   app.innerHTML = `
-    <div class="shell ${state.printMode ? "is-print-mode" : ""} is-${state.pageOrientation}">
+    <div class="shell ${state.printMode ? "is-print-mode" : ""} ${state.reflowMode ? "is-reflow-mode" : ""} is-${state.pageOrientation} density-${state.layoutDensity}">
       ${renderToolbar()}
       <main class="workspace">
         <section class="page-wrap">
@@ -104,7 +116,6 @@ function renderToolbar() {
       <label>章 ${renderSelect("chapter", chapters, state.picker.chapter)}</label>
       <label>節 ${renderSelect("verse", verses, state.picker.verse)}</label>
       <button data-action="add-verse" class="primary">＋ 新增經文</button>
-      <button data-action="new-practice-page">空白頁</button>
       <button data-action="edit-greek">✎ 編輯希臘文</button>
       <div class="segmented" role="group" aria-label="view mode">
         <button data-action="set-edit" class="${state.printMode ? "" : "active"}">編輯</button>
@@ -114,6 +125,11 @@ function renderToolbar() {
         <button data-action="set-landscape" class="${state.pageOrientation === "landscape" ? "active" : ""}">橫式</button>
         <button data-action="set-portrait" class="${state.pageOrientation === "portrait" ? "active" : ""}">直式</button>
       </div>
+      <div class="segmented" role="group" aria-label="translation mode">
+        <button data-action="set-translation-mode" data-translation-mode="verse" class="${state.translationMode === "verse" ? "active" : ""}">整節翻譯</button>
+        <button data-action="set-translation-mode" data-translation-mode="line" class="${state.translationMode === "line" ? "active" : ""}">逐行翻譯</button>
+      </div>
+      <button data-action="toggle-reflow" class="${state.reflowMode ? "active" : ""}">${state.reflowMode ? "結束重排" : "重排模式"}</button>
       <button data-action="print">⎙ 列印</button>
     </header>
   `;
@@ -137,7 +153,11 @@ function renderEmptyPage() {
 }
 
 function renderVerse(verse) {
-  const segments = wrapVerse(verse, { maxColumns: state.printMode ? maxPrintColumns(state.pageOrientation) : 6 });
+  const segments = wrapVerse(verse, {
+    maxColumns: state.printMode
+      ? maxPrintColumns(state.pageOrientation, state.layoutDensity)
+      : maxEditColumns(state.layoutDensity)
+  });
   const standardAnswer = state.standardAnswers[verse.reference];
   const hasAnswer = hasStandardAnswer(state.standardAnswers, verse.reference);
   const isExpanded = Boolean(state.expandedStandardAnswers[verse.reference]);
@@ -200,9 +220,14 @@ function renderCompactAnswerItems(words, values) {
 }
 
 function renderSegment(verse, segment) {
+  const translationRow = state.translationMode === "line" ? "lineTranslation" : "translation";
+  const translationKey = state.translationMode === "line"
+    ? tabKey(verse.id, "lineTranslation", segment.start)
+    : tabKey(verse.id, "translation");
   const columns = segment.words.map((word, offset) => {
     const index = segment.start + offset;
     const selected = state.selected.verseId === verse.id && state.selected.wordIndex === index;
+    const hasManualBreak = (verse.lineBreaks || []).includes(index);
     return `
       <div class="word-column ${selected ? "selected" : ""}" style="--chars:${columnSize(word, verse, index)}" data-word-index="${index}" data-verse-id="${verse.id}">
         <input class="syntax-input" value="${escapeAttr(segment.syntax[offset])}" data-row="syntax" data-index="${index}" data-verse-id="${verse.id}" data-tab-key="${escapeAttr(tabKey(verse.id, "syntax", index))}" aria-label="syntax for ${word}">
@@ -210,6 +235,9 @@ function renderSegment(verse, segment) {
         <input value="${escapeAttr(segment.morphology[offset])}" data-row="morphology" data-index="${index}" data-verse-id="${verse.id}" data-tab-key="${escapeAttr(tabKey(verse.id, "morphology", index))}" aria-label="morphology for ${word}">
         <input value="${escapeAttr(segment.gloss[offset])}" data-row="gloss" data-index="${index}" data-verse-id="${verse.id}" data-tab-key="${escapeAttr(tabKey(verse.id, "gloss", index))}" aria-label="gloss for ${word}">
       </div>
+      ${index < verse.words.length - 1 ? `
+        <button class="line-break-toggle ${hasManualBreak ? "active" : ""}" data-action="toggle-line-break" data-index="${index}" data-verse-id="${verse.id}" aria-label="toggle line break after ${word}">↵</button>
+      ` : ""}
     `;
   }).join("");
 
@@ -224,11 +252,11 @@ function renderSegment(verse, segment) {
         </div>
         <div class="word-grid">${columns}</div>
       </div>
-      ${segment.showTranslation ? `
+      ${state.translationMode === "line" || segment.showTranslation ? `
         <label class="translation-line">
           <b>5</b>
-          <span>整句翻譯</span>
-          <input value="${escapeAttr(segment.translation)}" data-row="translation" data-verse-id="${verse.id}" data-tab-key="${escapeAttr(tabKey(verse.id, "translation"))}">
+          <span>${state.translationMode === "line" ? "本行翻譯" : "整句翻譯"}</span>
+          <input value="${escapeAttr(state.translationMode === "line" ? segment.lineTranslation : segment.translation)}" data-row="${translationRow}" data-line-start="${segment.start}" data-verse-id="${verse.id}" data-tab-key="${escapeAttr(translationKey)}">
         </label>
       ` : ""}
     </section>
@@ -239,11 +267,29 @@ function renderSidePanel() {
   return `
     <aside class="side-panel">
       <h2>本頁</h2>
+      ${renderDensityControl()}
       <button class="wide-button primary" data-action="new-practice-page">空白頁</button>
       ${renderPagePanel()}
       <button class="reveal-tools" data-action="toggle-study-tools">${state.showStudyTools ? "隱藏詞彙 / 語法工具" : "顯示詞彙 / 語法工具"}</button>
       ${state.showStudyTools ? renderStudyTools() : ""}
     </aside>
+  `;
+}
+
+function renderDensityControl() {
+  return `
+    <label class="density-control">
+      <span class="density-control-heading">
+        <span>版面密度</span>
+        <strong>${DENSITY_LABELS[state.layoutDensity]}</strong>
+      </span>
+      <input type="range" min="0" max="2" step="1" value="${densitySliderValue(state.layoutDensity)}" data-density-range aria-label="版面密度，左邊寬鬆，中間標準，右邊緊密">
+      <span class="density-scale">
+        <span>寬鬆</span>
+        <span>標準</span>
+        <span>緊密</span>
+      </span>
+    </label>
   `;
 }
 
@@ -380,9 +426,12 @@ function bindEvents() {
       const verseId = event.currentTarget.dataset.verseId;
       const row = event.currentTarget.dataset.row;
       const index = Number(event.currentTarget.dataset.index);
-      updateVerse(verseId, (verse) => row === "translation"
-        ? { ...verse, translation: event.currentTarget.value }
-        : updateVerseCell(verse, row, index, event.currentTarget.value));
+      const lineStart = Number(event.currentTarget.dataset.lineStart);
+      updateVerse(verseId, (verse) => {
+        if (row === "translation") return { ...verse, translation: event.currentTarget.value };
+        if (row === "lineTranslation") return updateVerseLineTranslation(verse, lineStart, event.currentTarget.value);
+        return updateVerseCell(verse, row, index, event.currentTarget.value);
+      });
       persistActiveDraft();
     });
     input.addEventListener("keydown", handleInputKeydown);
@@ -402,6 +451,14 @@ function bindEvents() {
       state.selectedLessonId = event.currentTarget.value;
       const lesson = selectedLesson();
       if (lesson) state.lessonName = lesson.name;
+      render();
+    });
+  }
+
+  const densityRange = app.querySelector("[data-density-range]");
+  if (densityRange) {
+    densityRange.addEventListener("input", (event) => {
+      state.layoutDensity = densityFromSliderValue(event.currentTarget.value);
       render();
     });
   }
@@ -512,6 +569,14 @@ function handleAction(event) {
     state.pageOrientation = "portrait";
     render();
   }
+  if (action === "set-translation-mode") {
+    state.translationMode = button.dataset.translationMode === "line" ? "line" : "verse";
+    render();
+  }
+  if (action === "toggle-reflow") {
+    state.reflowMode = !state.reflowMode;
+    render();
+  }
   if (action === "print") printWorksheet();
   if (action === "remove-verse") removeVerse(button.dataset.verseId);
   if (action === "clear-verse") clearVerse(button.dataset.verseId);
@@ -520,6 +585,7 @@ function handleAction(event) {
   if (action === "save-standard-answer") saveVerseAsStandardAnswer(button.dataset.verseId);
   if (action === "toggle-standard-answer") toggleStandardAnswer(button.dataset.reference);
   if (action === "select-word") selectWord(button.dataset.verseId, Number(button.dataset.index));
+  if (action === "toggle-line-break") toggleManualLineBreak(button.dataset.verseId, Number(button.dataset.index));
   if (action === "toggle-study-tools") {
     state.showStudyTools = !state.showStudyTools;
     state.activeTool = "語法";
@@ -598,6 +664,12 @@ function clearVerse(verseId) {
 function clearPageAnswers() {
   state.verses = clearAllAnswers(state.verses);
   clearActiveDraft();
+  render();
+}
+
+function toggleManualLineBreak(verseId, index) {
+  updateVerse(verseId, (verse) => toggleLineBreakAfter(verse, index));
+  persistActiveDraft();
   render();
 }
 
@@ -783,6 +855,16 @@ function columnSize(word, verse, index) {
   const morphologyLength = verse.morphology[index] ? verse.morphology[index].length : 0;
   const glossLength = verse.gloss[index] ? verse.gloss[index].length : 0;
   return Math.max(word.length, syntaxLength, morphologyLength, glossLength, 4);
+}
+
+function densitySliderValue(density) {
+  const normalized = normalizeLayoutDensity(density);
+  return String(DENSITY_OPTIONS.indexOf(normalized));
+}
+
+function densityFromSliderValue(value) {
+  const index = Number(value);
+  return DENSITY_OPTIONS[index] || "standard";
 }
 
 function escapeAttr(value) {

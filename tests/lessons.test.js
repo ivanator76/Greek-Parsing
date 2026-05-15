@@ -20,7 +20,9 @@ function filledVerse() {
     syntax: ["S", "V", "D", "N"],
     morphology: ["ADV", "VIPA3S", "DNNS", "NNNS"],
     gloss: ["照著", "說", "這", "靈"],
-    translation: "聖靈如此說"
+    translation: "聖靈如此說",
+    lineBreaks: [1],
+    lineTranslations: { 0: "照著他說" }
   };
 }
 
@@ -70,6 +72,8 @@ test("clearVerseAnswers clears student rows while keeping Greek text", () => {
   assert.deepEqual(cleared.morphology, ["", "", "", ""]);
   assert.deepEqual(cleared.gloss, ["", "", "", ""]);
   assert.equal(cleared.translation, "");
+  assert.deepEqual(cleared.lineBreaks, [1]);
+  assert.deepEqual(cleared.lineTranslations, { 0: "照著他說" });
 });
 
 test("clearAllAnswers clears every verse on the current page", () => {

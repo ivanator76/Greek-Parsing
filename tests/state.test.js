@@ -9,4 +9,7 @@ test("initial app state starts with no exercises and only the page panel visible
   assert.equal(state.activeTool, "本頁");
   assert.equal(state.showStudyTools, false);
   assert.equal(state.pageOrientation, "landscape");
+  assert.equal(state.layoutDensity, "standard");
+  assert.equal(state.translationMode, "verse");
+  assert.equal(state.reflowMode, false);
 });
