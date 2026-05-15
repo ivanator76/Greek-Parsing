@@ -1,5 +1,6 @@
 import { updateVerseCell, updateVerseGreek, wrapVerse } from "./layout.js";
 import { escapeHtml } from "./escape.js";
+import { preferredVerseIdForEditing } from "./focused-verse.js";
 import {
   clearAllAnswers,
   clearPracticePage,
@@ -385,6 +386,7 @@ function bindEvents() {
       persistActiveDraft();
     });
     input.addEventListener("keydown", handleInputKeydown);
+    input.addEventListener("focus", handleInputFocus);
   });
 
   const lessonNameInput = app.querySelector("[data-lesson-name]");
@@ -436,6 +438,17 @@ function handleInputKeydown(event) {
   event.preventDefault();
   target.focus();
   target.select();
+}
+
+function handleInputFocus(event) {
+  const verseId = event.currentTarget.dataset.verseId;
+  if (!verseId) return;
+  const index = Number(event.currentTarget.dataset.index);
+  state.selected = {
+    verseId,
+    wordIndex: Number.isFinite(index) ? index : state.lastKeyboardWordIndex
+  };
+  rememberKeyboardWordIndex(event.currentTarget);
 }
 
 function moveByArrowKey(event) {
@@ -549,7 +562,11 @@ function addSelectedVerse() {
 }
 
 function editSelectedGreek() {
-  const verse = state.verses.find((item) => item.id === state.selected.verseId);
+  const verseId = preferredVerseIdForEditing({
+    activeElement: document.activeElement,
+    selectedVerseId: state.selected.verseId
+  });
+  const verse = state.verses.find((item) => item.id === verseId);
   const nextGreek = window.prompt("編輯希臘文", verse ? verse.greek : "");
   if (!nextGreek) return;
   if (verse) {
