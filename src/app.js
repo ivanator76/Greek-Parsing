@@ -576,6 +576,7 @@ function bindEvents() {
 
 function handleInputKeydown(event) {
   rememberKeyboardWordIndex(event.currentTarget);
+  if (isImeComposing(event)) return;
   if (isArrowKey(event.key) && !event.altKey && !event.ctrlKey && !event.metaKey) {
     moveByArrowKey(event);
     return;
@@ -635,6 +636,10 @@ function rememberKeyboardWordIndex(input) {
 
 function isArrowKey(key) {
   return key === "ArrowLeft" || key === "ArrowRight" || key === "ArrowUp" || key === "ArrowDown";
+}
+
+function isImeComposing(event) {
+  return event.isComposing || event.key === "Process" || event.keyCode === 229;
 }
 
 function horizontalTabInputs() {

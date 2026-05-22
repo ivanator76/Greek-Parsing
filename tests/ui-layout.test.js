@@ -89,3 +89,13 @@ test("editing Greek text persists changes for the active lesson", () => {
   assert.match(appSource, /function persistActiveLessonGreekText\(\)/);
   assert.match(appSource, /if \(verse\) \{[\s\S]*persistActiveLessonGreekText\(\);[\s\S]*persistActiveDraft\(\);/);
 });
+
+test("keyboard navigation does not intercept IME composition keys", () => {
+  const keydown = functionBody("handleInputKeydown");
+
+  assert.match(keydown, /isImeComposing\(event\)/);
+  assert.match(appSource, /function isImeComposing\(event\)/);
+  assert.match(appSource, /event\.isComposing/);
+  assert.match(appSource, /event\.key === "Process"/);
+  assert.match(appSource, /event\.keyCode === 229/);
+});
