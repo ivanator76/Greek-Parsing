@@ -192,6 +192,11 @@ select {
   padding: 22px;
 }
 
+.is-side-collapsed .workspace {
+  grid-template-columns: minmax(720px, 1fr);
+  padding-right: 70px;
+}
+
 .page-wrap {
   display: flex;
   justify-content: center;
@@ -202,6 +207,34 @@ select {
   background: var(--paper);
   box-shadow: 0 14px 40px rgba(36, 48, 60, 0.18);
   padding: 58px 56px;
+}
+
+.is-side-collapsed:not(.is-print-mode) {
+  --column-gap: 8px;
+  --greek-font-size: 25px;
+  --input-height: 33px;
+  --word-min-factor: 11px;
+}
+
+.is-side-collapsed:not(.is-print-mode) .paper {
+  padding: 64px 68px;
+  width: min(100%, 1320px);
+}
+
+.is-side-collapsed:not(.is-print-mode) .paper-header {
+  margin-bottom: 30px;
+}
+
+.is-side-collapsed:not(.is-print-mode) h1 {
+  font-size: 26px;
+}
+
+.is-side-collapsed:not(.is-print-mode) .verse-heading h2 {
+  font-size: 24px;
+}
+
+.is-side-collapsed:not(.is-print-mode) .word-column input {
+  font-size: 15px;
 }
 
 .is-landscape .paper {
@@ -512,7 +545,37 @@ h1 {
 
 .side-panel h2 {
   font-size: 18px;
+  margin: 0;
+}
+
+.side-panel-header {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
   margin-bottom: 8px;
+}
+
+.side-panel-toggle {
+  color: var(--muted);
+  font-size: 13px;
+  min-height: 28px;
+  padding: 0 8px;
+}
+
+.side-panel-collapsed {
+  display: flex;
+  justify-content: center;
+  padding: 10px;
+  position: fixed;
+  right: 22px;
+  top: 80px;
+  width: 48px;
+}
+
+.side-panel-toggle.collapsed {
+  color: var(--blue);
+  font-weight: 800;
+  writing-mode: vertical-rl;
 }
 
 .density-control {

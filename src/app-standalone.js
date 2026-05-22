@@ -8555,6 +8555,7 @@
       layoutDensity: "standard",
       translationMode: "verse",
       reflowMode: false,
+      sidePanelCollapsed: false,
       lessonName: "",
       selectedLessonId: "",
       activeLessonId: "",
@@ -9032,7 +9033,7 @@
   function render() {
     applyPrintOrientation();
     app.innerHTML = `
-    <div class="shell ${state.printMode ? "is-print-mode" : ""} ${state.reflowMode ? "is-reflow-mode" : ""} is-${state.pageOrientation} density-${state.layoutDensity}">
+    <div class="shell ${state.printMode ? "is-print-mode" : ""} ${state.reflowMode ? "is-reflow-mode" : ""} ${state.sidePanelCollapsed ? "is-side-collapsed" : ""} is-${state.pageOrientation} density-${state.layoutDensity}">
       ${renderToolbar()}
       <main class="workspace">
         <section class="page-wrap">
@@ -9209,9 +9210,19 @@
   `;
   }
   function renderSidePanel() {
+    if (state.sidePanelCollapsed) {
+      return `
+      <aside class="side-panel side-panel-collapsed">
+        <button class="side-panel-toggle collapsed" data-action="toggle-side-panel" aria-expanded="false">\u672C\u9801</button>
+      </aside>
+    `;
+    }
     return `
     <aside class="side-panel">
-      <h2>\u672C\u9801</h2>
+      <div class="side-panel-header">
+        <h2>\u672C\u9801</h2>
+        <button class="side-panel-toggle" data-action="toggle-side-panel" aria-expanded="true">\u6536\u8D77</button>
+      </div>
       ${renderDensityControl()}
       <button class="wide-button primary" data-action="new-practice-page">\u7A7A\u767D\u9801</button>
       ${renderPagePanel()}
@@ -9508,6 +9519,10 @@
     }
     if (action === "toggle-reflow") {
       state.reflowMode = !state.reflowMode;
+      render();
+    }
+    if (action === "toggle-side-panel") {
+      state.sidePanelCollapsed = !state.sidePanelCollapsed;
       render();
     }
     if (action === "save-text") saveWorksheetText();

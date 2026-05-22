@@ -10,6 +10,7 @@ export function createInitialState() {
     layoutDensity: "standard",
     translationMode: "verse",
     reflowMode: false,
+    sidePanelCollapsed: false,
     lessonName: "",
     selectedLessonId: "",
     activeLessonId: "",

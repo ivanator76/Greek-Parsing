@@ -89,7 +89,7 @@ function showStartupError(error) {
 function render() {
   applyPrintOrientation();
   app.innerHTML = `
-    <div class="shell ${state.printMode ? "is-print-mode" : ""} ${state.reflowMode ? "is-reflow-mode" : ""} is-${state.pageOrientation} density-${state.layoutDensity}">
+    <div class="shell ${state.printMode ? "is-print-mode" : ""} ${state.reflowMode ? "is-reflow-mode" : ""} ${state.sidePanelCollapsed ? "is-side-collapsed" : ""} is-${state.pageOrientation} density-${state.layoutDensity}">
       ${renderToolbar()}
       <main class="workspace">
         <section class="page-wrap">
@@ -279,9 +279,20 @@ function renderSegment(verse, segment) {
 }
 
 function renderSidePanel() {
+  if (state.sidePanelCollapsed) {
+    return `
+      <aside class="side-panel side-panel-collapsed">
+        <button class="side-panel-toggle collapsed" data-action="toggle-side-panel" aria-expanded="false">本頁</button>
+      </aside>
+    `;
+  }
+
   return `
     <aside class="side-panel">
-      <h2>本頁</h2>
+      <div class="side-panel-header">
+        <h2>本頁</h2>
+        <button class="side-panel-toggle" data-action="toggle-side-panel" aria-expanded="true">收起</button>
+      </div>
       ${renderDensityControl()}
       <button class="wide-button primary" data-action="new-practice-page">空白頁</button>
       ${renderPagePanel()}
@@ -605,6 +616,10 @@ function handleAction(event) {
   }
   if (action === "toggle-reflow") {
     state.reflowMode = !state.reflowMode;
+    render();
+  }
+  if (action === "toggle-side-panel") {
+    state.sidePanelCollapsed = !state.sidePanelCollapsed;
     render();
   }
   if (action === "save-text") saveWorksheetText();

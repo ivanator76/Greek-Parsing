@@ -34,9 +34,28 @@ test("top toolbar offers a save-as menu beside print", () => {
 test("page side panel places the density range directly below the page heading", () => {
   const sidePanel = functionBody("renderSidePanel");
 
-  assert.match(sidePanel, /<h2>本頁<\/h2>\s*\$\{renderDensityControl\(\)\}/);
+  assert.match(sidePanel, /<h2>本頁<\/h2>/);
+  assert.match(sidePanel, /<button class="side-panel-toggle" data-action="toggle-side-panel" aria-expanded="true">收起<\/button>/);
+  assert.match(sidePanel, /\$\{renderDensityControl\(\)\}/);
   assert.match(appSource, /<input[^>]+type="range"[^>]+data-density-range/s);
   assert.match(appSource, /寬鬆[\s\S]*標準[\s\S]*緊密/);
+});
+
+test("page side panel can collapse to a narrow toggle", () => {
+  const sidePanel = functionBody("renderSidePanel");
+
+  assert.match(sidePanel, /state\.sidePanelCollapsed/);
+  assert.match(sidePanel, /side-panel-collapsed/);
+  assert.match(sidePanel, /aria-expanded="false">本頁<\/button>/);
+  assert.match(appSource, /data-action="toggle-side-panel"/);
+  assert.match(cssSource, /\.is-side-collapsed \.workspace\s*\{[^}]*grid-template-columns:\s*minmax\(720px,\s*1fr\);/s);
+  assert.match(cssSource, /\.side-panel-collapsed\s*\{[^}]*position:\s*fixed;/s);
+});
+
+test("collapsed side panel enlarges the worksheet for focused editing", () => {
+  assert.match(cssSource, /\.is-side-collapsed:not\(\.is-print-mode\)\s*\{[^}]*--greek-font-size:\s*25px;/s);
+  assert.match(cssSource, /\.is-side-collapsed:not\(\.is-print-mode\)\s*\{[^}]*--input-height:\s*33px;/s);
+  assert.match(cssSource, /\.is-side-collapsed:not\(\.is-print-mode\) \.paper\s*\{[^}]*width:\s*min\(100%,\s*1320px\);/s);
 });
 
 test("side panel scrolls independently when its content exceeds the viewport", () => {
