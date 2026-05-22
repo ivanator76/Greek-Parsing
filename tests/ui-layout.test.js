@@ -19,6 +19,18 @@ test("top toolbar omits the blank page button and density controls", () => {
   assert.doesNotMatch(toolbar, /data-action="set-density"/);
 });
 
+test("top toolbar offers a save-as menu beside print", () => {
+  const toolbar = functionBody("renderToolbar");
+
+  assert.match(toolbar, /<details class="save-menu">/);
+  assert.match(toolbar, /<summary>儲存為<\/summary>/);
+  assert.match(toolbar, /data-action="save-text"/);
+  assert.match(toolbar, /data-action="save-docx"/);
+  assert.match(toolbar, />TXT<\/button>/);
+  assert.match(toolbar, />DOCX<\/button>/);
+  assert.match(toolbar, /class="save-menu"[\s\S]*data-action="print"/);
+});
+
 test("page side panel places the density range directly below the page heading", () => {
   const sidePanel = functionBody("renderSidePanel");
 

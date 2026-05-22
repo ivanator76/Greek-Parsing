@@ -128,6 +128,62 @@ select {
   box-shadow: 0 1px 3px rgba(20, 32, 46, 0.12);
 }
 
+.save-menu {
+  position: relative;
+}
+
+.save-menu summary {
+  align-items: center;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  cursor: pointer;
+  display: flex;
+  min-height: 32px;
+  padding: 0 10px;
+}
+
+.save-menu summary:hover {
+  border-color: #aeb8c3;
+}
+
+.save-menu summary::marker,
+.save-menu summary::-webkit-details-marker {
+  display: none;
+}
+
+.save-menu summary::after {
+  color: var(--muted);
+  content: "▾";
+  font-size: 11px;
+  margin-left: 7px;
+}
+
+.save-menu[open] summary::after {
+  content: "▴";
+}
+
+.save-menu-options {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 10px 24px rgba(20, 32, 46, 0.16);
+  display: grid;
+  gap: 4px;
+  min-width: 112px;
+  padding: 6px;
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 8;
+}
+
+.save-menu-options button {
+  justify-content: flex-start;
+  text-align: left;
+  width: 100%;
+}
+
 .workspace {
   display: grid;
   gap: 18px;

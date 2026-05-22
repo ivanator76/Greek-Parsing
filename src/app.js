@@ -43,6 +43,8 @@ import {
 import { createTagStore } from "./tags.js";
 import { nextArrowKey, nextHorizontalTabKey } from "./tab-order.js";
 import { GREEK_TEXT_SOURCE } from "./text-source.js";
+import { createWorksheetDocxBlob } from "./docx-export.js";
+import { formatWorksheetText } from "./text-export.js";
 import { createBlankExercise } from "./worksheet.js";
 
 const BOOKS = books();
@@ -136,6 +138,13 @@ function renderToolbar() {
         <button data-action="set-translation-mode" data-translation-mode="line" class="${state.translationMode === "line" ? "active" : ""}">逐行翻譯</button>
       </div>
       <button data-action="toggle-reflow" class="${state.reflowMode ? "active" : ""}">${state.reflowMode ? "結束重排" : "重排模式"}</button>
+      <details class="save-menu">
+        <summary>儲存為</summary>
+        <div class="save-menu-options">
+          <button data-action="save-text">TXT</button>
+          <button data-action="save-docx">DOCX</button>
+        </div>
+      </details>
       <button data-action="print">⎙ 列印</button>
     </header>
   `;
@@ -598,6 +607,8 @@ function handleAction(event) {
     state.reflowMode = !state.reflowMode;
     render();
   }
+  if (action === "save-text") saveWorksheetText();
+  if (action === "save-docx") saveWorksheetDocx();
   if (action === "print") printWorksheet();
   if (action === "remove-verse") removeVerse(button.dataset.verseId);
   if (action === "clear-verse") clearVerse(button.dataset.verseId);
@@ -773,6 +784,32 @@ function printWorksheet() {
   window.print();
 }
 
+function saveWorksheetText() {
+  const text = formatWorksheetText({
+    ...worksheetExportOptions()
+  });
+  downloadTextFile(text, worksheetTextFilename());
+}
+
+function saveWorksheetDocx() {
+  const blob = createWorksheetDocxBlob({
+    ...worksheetExportOptions()
+  });
+  downloadBlob(blob, worksheetDocxFilename());
+}
+
+function worksheetExportOptions() {
+  return {
+    verses: state.verses,
+    translationMode: state.translationMode,
+    maxColumns: state.printMode
+      ? maxPrintColumns(state.pageOrientation, state.layoutDensity)
+      : maxEditColumns(state.layoutDensity),
+    standardAnswers: state.standardAnswers,
+    expandedStandardAnswers: state.expandedStandardAnswers
+  };
+}
+
 function exportSavedData() {
   const archive = createDataArchive({
     lessons: state.lessons,
@@ -780,14 +817,47 @@ function exportSavedData() {
     standardAnswers: state.standardAnswers
   });
   const blob = new Blob([JSON.stringify(archive, null, 2)], { type: "application/json" });
+  downloadBlob(blob, `greek-parsing-backup-${new Date().toISOString().slice(0, 10)}.json`);
+}
+
+function downloadTextFile(text, filename) {
+  const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+  downloadBlob(blob, filename);
+}
+
+function downloadBlob(blob, filename) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = `greek-parsing-backup-${new Date().toISOString().slice(0, 10)}.json`;
+  link.download = filename;
   document.body.appendChild(link);
   link.click();
   link.remove();
   URL.revokeObjectURL(url);
+}
+
+function worksheetTextFilename() {
+  const date = new Date().toISOString().slice(0, 10);
+  const label = state.verses.length
+    ? state.verses.map((verse) => verse.reference).join("_")
+    : "blank-page";
+  return `greek-parsing-${slugifyFilename(label)}-${date}.txt`;
+}
+
+function worksheetDocxFilename() {
+  const date = new Date().toISOString().slice(0, 10);
+  const label = state.verses.length
+    ? state.verses.map((verse) => verse.reference).join("_")
+    : "blank-page";
+  return `greek-parsing-${slugifyFilename(label)}-${date}.docx`;
+}
+
+function slugifyFilename(value) {
+  return value
+    .trim()
+    .replace(/[^\p{L}\p{N}]+/gu, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80) || "worksheet";
 }
 
 function handleImportFile(event) {

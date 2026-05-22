@@ -8696,6 +8696,304 @@
   // src/text-source.js
   var GREEK_TEXT_SOURCE = "\u5E0C\u81D8\u539F\u6587\uFF1ATischendorf Greek New Testament";
 
+  // src/zip-store.js
+  var CRC_TABLE = makeCrcTable();
+  function createZip(files) {
+    const encoder = new TextEncoder();
+    const localParts = [];
+    const centralParts = [];
+    let offset = 0;
+    files.forEach((file) => {
+      const nameBytes = encoder.encode(file.name);
+      const data = typeof file.content === "string" ? encoder.encode(file.content) : file.content;
+      const crc = crc32(data);
+      const localHeader = makeLocalHeader(nameBytes, data, crc);
+      localParts.push(localHeader, data);
+      centralParts.push(makeCentralHeader(nameBytes, data, crc, offset));
+      offset += localHeader.length + data.length;
+    });
+    const centralSize = centralParts.reduce((sum, part) => sum + part.length, 0);
+    const end = makeEndRecord(files.length, centralSize, offset);
+    return concatUint8Arrays([...localParts, ...centralParts, end]);
+  }
+  function makeLocalHeader(nameBytes, data, crc) {
+    const header = new Uint8Array(30 + nameBytes.length);
+    const view = new DataView(header.buffer);
+    view.setUint32(0, 67324752, true);
+    view.setUint16(4, 20, true);
+    view.setUint16(6, 0, true);
+    view.setUint16(8, 0, true);
+    view.setUint16(10, 0, true);
+    view.setUint16(12, 0, true);
+    view.setUint32(14, crc, true);
+    view.setUint32(18, data.length, true);
+    view.setUint32(22, data.length, true);
+    view.setUint16(26, nameBytes.length, true);
+    header.set(nameBytes, 30);
+    return header;
+  }
+  function makeCentralHeader(nameBytes, data, crc, offset) {
+    const header = new Uint8Array(46 + nameBytes.length);
+    const view = new DataView(header.buffer);
+    view.setUint32(0, 33639248, true);
+    view.setUint16(4, 20, true);
+    view.setUint16(6, 20, true);
+    view.setUint16(8, 0, true);
+    view.setUint16(10, 0, true);
+    view.setUint16(12, 0, true);
+    view.setUint16(14, 0, true);
+    view.setUint32(16, crc, true);
+    view.setUint32(20, data.length, true);
+    view.setUint32(24, data.length, true);
+    view.setUint16(28, nameBytes.length, true);
+    view.setUint32(42, offset, true);
+    header.set(nameBytes, 46);
+    return header;
+  }
+  function makeEndRecord(fileCount, centralSize, centralOffset) {
+    const record = new Uint8Array(22);
+    const view = new DataView(record.buffer);
+    view.setUint32(0, 101010256, true);
+    view.setUint16(8, fileCount, true);
+    view.setUint16(10, fileCount, true);
+    view.setUint32(12, centralSize, true);
+    view.setUint32(16, centralOffset, true);
+    return record;
+  }
+  function concatUint8Arrays(parts) {
+    const total = parts.reduce((sum, part) => sum + part.length, 0);
+    const combined = new Uint8Array(total);
+    let offset = 0;
+    parts.forEach((part) => {
+      combined.set(part, offset);
+      offset += part.length;
+    });
+    return combined;
+  }
+  function crc32(bytes) {
+    let crc = 4294967295;
+    for (const byte of bytes) {
+      crc = CRC_TABLE[(crc ^ byte) & 255] ^ crc >>> 8;
+    }
+    return (crc ^ 4294967295) >>> 0;
+  }
+  function makeCrcTable() {
+    return Array.from({ length: 256 }, (_, index) => {
+      let value = index;
+      for (let bit = 0; bit < 8; bit += 1) {
+        value = value & 1 ? 3988292384 ^ value >>> 1 : value >>> 1;
+      }
+      return value >>> 0;
+    });
+  }
+
+  // src/docx-export.js
+  var DOCX_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+  function createWorksheetDocxBlob({
+    verses,
+    translationMode = "verse",
+    maxColumns = 6,
+    standardAnswers = {},
+    expandedStandardAnswers = {}
+  }) {
+    const files = [
+      { name: "[Content_Types].xml", content: contentTypesXml() },
+      { name: "_rels/.rels", content: packageRelsXml() },
+      { name: "word/styles.xml", content: stylesXml() },
+      {
+        name: "word/document.xml",
+        content: documentXml({ verses, translationMode, maxColumns, standardAnswers, expandedStandardAnswers })
+      }
+    ];
+    return new Blob([createZip(files)], { type: DOCX_TYPE });
+  }
+  function documentXml({ verses, translationMode, maxColumns, standardAnswers, expandedStandardAnswers }) {
+    const body = [];
+    body.push(headingParagraph("Koine Greek Parsing", "Title"));
+    body.push(paragraph(GREEK_TEXT_SOURCE, "Subtitle"));
+    if (!verses.length) {
+      body.push(paragraph("\u5C1A\u672A\u52A0\u5165\u7D93\u6587"));
+    } else {
+      verses.forEach((verse) => {
+        body.push(headingParagraph(verse.reference, "Heading1"));
+        wrapVerse(verse, { maxColumns }).forEach((segment) => {
+          body.push(segmentParagraphs(segment, translationMode));
+        });
+        const answer = standardAnswers[verse.reference];
+        if (answer && expandedStandardAnswers[verse.reference]) {
+          body.push(headingParagraph("\u5DF2\u986F\u793A\u6A19\u6E96\u7B54\u6848", "Heading2"));
+          body.push(answerParagraph("\u8A9E\u6CD5", answer.syntax || []));
+          body.push(answerParagraph("\u5F62\u614B", answer.morphology || []));
+          body.push(answerParagraph("\u9010\u5B57", answer.gloss || []));
+          body.push(answerParagraph("\u6574\u53E5", [answer.translation || ""]));
+        }
+      });
+    }
+    body.push(sectionProperties());
+    return xmlDocument(body.join(""));
+  }
+  function segmentParagraphs(segment, translationMode) {
+    const rows = [
+      ["1", ...segment.syntax],
+      ["2", ...segment.words],
+      ["3", ...segment.morphology],
+      ["4", ...segment.gloss]
+    ];
+    if (translationMode === "line") {
+      rows.push(["5", `\u672C\u884C\u7FFB\u8B6F ${segment.lineTranslation || ""}`, ...Array(segment.words.length - 1).fill("")]);
+    } else if (segment.showTranslation) {
+      rows.push(["5", `\u6574\u53E5\u7FFB\u8B6F ${segment.translation || ""}`, ...Array(segment.words.length - 1).fill("")]);
+    }
+    const columnCount = Math.max(segment.words.length, 1);
+    return `${rows.map((row) => rowParagraph(row, columnCount, row[0] === "2" ? "GreekRow" : "CellText")).join("")}${paragraph("")}`;
+  }
+  function answerParagraph(label, values) {
+    const text = values.map((value) => value || "").join(" | ");
+    return paragraph(`${label} ${text}`);
+  }
+  function headingParagraph(text, style2) {
+    return paragraph(text, style2);
+  }
+  function paragraph(text, style2 = "Normal") {
+    const styleXml = style2 ? `<w:pStyle w:val="${style2}"/>` : "";
+    return `
+    <w:p>
+      <w:pPr>${styleXml}</w:pPr>
+      <w:r><w:t xml:space="preserve">${escapeXml(text)}</w:t></w:r>
+    </w:p>
+  `;
+  }
+  function rowParagraph(values, columnCount, style2) {
+    const tabs = tabStops(columnCount);
+    return `
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="${style2}"/>
+        <w:tabs>${tabs.map((position) => `<w:tab w:val="left" w:pos="${position}"/>`).join("")}</w:tabs>
+        <w:spacing w:after="80"/>
+      </w:pPr>
+      ${tabbedRuns(values)}
+    </w:p>
+  `;
+  }
+  function tabStops(columnCount) {
+    const labelWidth = 540;
+    const cellWidth = Math.floor((9360 - labelWidth) / columnCount);
+    return Array.from({ length: columnCount }, (_, index) => labelWidth + cellWidth * index);
+  }
+  function tabbedRuns(values) {
+    return values.map((value, index) => {
+      const tab = index === 0 ? "" : "<w:r><w:tab/></w:r>";
+      return `${tab}<w:r><w:t xml:space="preserve">${escapeXml(value || "")}</w:t></w:r>`;
+    }).join("");
+  }
+  function sectionProperties() {
+    return `
+    <w:sectPr>
+      <w:pgSz w:w="12240" w:h="15840"/>
+      <w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440" w:header="720" w:footer="720" w:gutter="0"/>
+    </w:sectPr>
+  `;
+  }
+  function xmlDocument(body) {
+    return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>${body}</w:body>
+</w:document>`;
+  }
+  function contentTypesXml() {
+    return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+  <Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>
+</Types>`;
+  }
+  function packageRelsXml() {
+    return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+</Relationships>`;
+  }
+  function stylesXml() {
+    return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  ${style("Normal", "paragraph", "Normal", 22, "Times New Roman")}
+  ${style("Title", "paragraph", "Title", 34, "Arial", true)}
+  ${style("Subtitle", "paragraph", "Subtitle", 18, "Arial")}
+  ${style("Heading1", "paragraph", "heading 1", 28, "Arial", true)}
+  ${style("Heading2", "paragraph", "heading 2", 22, "Arial", true)}
+  ${style("CellText", "paragraph", "Cell Text", 20, "Arial")}
+  ${style("GreekRow", "paragraph", "Greek Row", 28, "Times New Roman")}
+</w:styles>`;
+  }
+  function style(id, type, name, size, font, bold = false) {
+    return `
+    <w:style w:type="${type}" w:styleId="${id}">
+      <w:name w:val="${name}"/>
+      <w:rPr>
+        <w:rFonts w:ascii="${font}" w:hAnsi="${font}" w:eastAsia="Microsoft JhengHei"/>
+        ${bold ? "<w:b/>" : ""}
+        <w:sz w:val="${size}"/>
+        <w:szCs w:val="${size}"/>
+      </w:rPr>
+    </w:style>
+  `;
+  }
+  function escapeXml(value) {
+    return String(value || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+
+  // src/text-export.js
+  function formatWorksheetText({
+    verses,
+    translationMode = "verse",
+    maxColumns = 6,
+    standardAnswers = {},
+    expandedStandardAnswers = {}
+  }) {
+    const lines = [
+      "Koine Greek Parsing",
+      GREEK_TEXT_SOURCE,
+      ""
+    ];
+    if (!verses.length) {
+      lines.push("\u5C1A\u672A\u52A0\u5165\u7D93\u6587");
+      return lines.join("\n");
+    }
+    verses.forEach((verse, verseIndex) => {
+      if (verseIndex > 0) lines.push("");
+      lines.push(verse.reference);
+      lines.push("");
+      wrapVerse(verse, { maxColumns }).forEach((segment, segmentIndex) => {
+        if (segmentIndex > 0) lines.push("");
+        lines.push(`1 ${joinCells(segment.syntax)}`);
+        lines.push(`2 ${joinCells(segment.words)}`);
+        lines.push(`3 ${joinCells(segment.morphology)}`);
+        lines.push(`4 ${joinCells(segment.gloss)}`);
+        if (translationMode === "line") {
+          lines.push(`5 \u672C\u884C\u7FFB\u8B6F ${segment.lineTranslation || ""}`);
+        } else if (segment.showTranslation) {
+          lines.push(`5 \u6574\u53E5\u7FFB\u8B6F ${segment.translation || ""}`);
+        }
+      });
+      const answer = standardAnswers[verse.reference];
+      if (answer && expandedStandardAnswers[verse.reference]) {
+        lines.push("");
+        lines.push("\u5DF2\u986F\u793A\u6A19\u6E96\u7B54\u6848");
+        lines.push(`\u8A9E\u6CD5 ${joinCells(answer.syntax || [])}`);
+        lines.push(`\u5F62\u614B ${joinCells(answer.morphology || [])}`);
+        lines.push(`\u9010\u5B57 ${joinCells(answer.gloss || [])}`);
+        lines.push(`\u6574\u53E5 ${answer.translation || ""}`);
+      }
+    });
+    return lines.join("\n");
+  }
+  function joinCells(values = []) {
+    return values.map((value) => value || "").join(" | ");
+  }
+
   // src/app.js
   var BOOKS = books();
   var DEFAULT_TAGS = ["S", "V+N", "V+G", "V+D", "V+A", "Prp", "NP+G", "V+IP", "PP~Adj", "PP~Adv"];
@@ -8782,6 +9080,13 @@
         <button data-action="set-translation-mode" data-translation-mode="line" class="${state.translationMode === "line" ? "active" : ""}">\u9010\u884C\u7FFB\u8B6F</button>
       </div>
       <button data-action="toggle-reflow" class="${state.reflowMode ? "active" : ""}">${state.reflowMode ? "\u7D50\u675F\u91CD\u6392" : "\u91CD\u6392\u6A21\u5F0F"}</button>
+      <details class="save-menu">
+        <summary>\u5132\u5B58\u70BA</summary>
+        <div class="save-menu-options">
+          <button data-action="save-text">TXT</button>
+          <button data-action="save-docx">DOCX</button>
+        </div>
+      </details>
       <button data-action="print">\u2399 \u5217\u5370</button>
     </header>
   `;
@@ -9205,6 +9510,8 @@
       state.reflowMode = !state.reflowMode;
       render();
     }
+    if (action === "save-text") saveWorksheetText();
+    if (action === "save-docx") saveWorksheetDocx();
     if (action === "print") printWorksheet();
     if (action === "remove-verse") removeVerse(button.dataset.verseId);
     if (action === "clear-verse") clearVerse(button.dataset.verseId);
@@ -9362,6 +9669,27 @@
     applyPrintOrientation();
     window.print();
   }
+  function saveWorksheetText() {
+    const text = formatWorksheetText({
+      ...worksheetExportOptions()
+    });
+    downloadTextFile(text, worksheetTextFilename());
+  }
+  function saveWorksheetDocx() {
+    const blob = createWorksheetDocxBlob({
+      ...worksheetExportOptions()
+    });
+    downloadBlob(blob, worksheetDocxFilename());
+  }
+  function worksheetExportOptions() {
+    return {
+      verses: state.verses,
+      translationMode: state.translationMode,
+      maxColumns: state.printMode ? maxPrintColumns(state.pageOrientation, state.layoutDensity) : maxEditColumns(state.layoutDensity),
+      standardAnswers: state.standardAnswers,
+      expandedStandardAnswers: state.expandedStandardAnswers
+    };
+  }
   function exportSavedData() {
     const archive = createDataArchive({
       lessons: state.lessons,
@@ -9369,14 +9697,34 @@
       standardAnswers: state.standardAnswers
     });
     const blob = new Blob([JSON.stringify(archive, null, 2)], { type: "application/json" });
+    downloadBlob(blob, `greek-parsing-backup-${(/* @__PURE__ */ new Date()).toISOString().slice(0, 10)}.json`);
+  }
+  function downloadTextFile(text, filename) {
+    const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+    downloadBlob(blob, filename);
+  }
+  function downloadBlob(blob, filename) {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `greek-parsing-backup-${(/* @__PURE__ */ new Date()).toISOString().slice(0, 10)}.json`;
+    link.download = filename;
     document.body.appendChild(link);
     link.click();
     link.remove();
     URL.revokeObjectURL(url);
+  }
+  function worksheetTextFilename() {
+    const date = (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
+    const label = state.verses.length ? state.verses.map((verse) => verse.reference).join("_") : "blank-page";
+    return `greek-parsing-${slugifyFilename(label)}-${date}.txt`;
+  }
+  function worksheetDocxFilename() {
+    const date = (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
+    const label = state.verses.length ? state.verses.map((verse) => verse.reference).join("_") : "blank-page";
+    return `greek-parsing-${slugifyFilename(label)}-${date}.docx`;
+  }
+  function slugifyFilename(value) {
+    return value.trim().replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-+|-+$/g, "").slice(0, 80) || "worksheet";
   }
   function handleImportFile(event) {
     const [file] = event.currentTarget.files || [];
@@ -9414,13 +9762,13 @@
     render();
   }
   function applyPrintOrientation() {
-    let style = document.querySelector("#print-orientation");
-    if (!style) {
-      style = document.createElement("style");
-      style.id = "print-orientation";
-      document.head.appendChild(style);
+    let style2 = document.querySelector("#print-orientation");
+    if (!style2) {
+      style2 = document.createElement("style");
+      style2.id = "print-orientation";
+      document.head.appendChild(style2);
     }
-    style.textContent = printPageRule(state.pageOrientation);
+    style2.textContent = printPageRule(state.pageOrientation);
   }
   function saveCurrentLesson() {
     if (!state.verses.length) return;
