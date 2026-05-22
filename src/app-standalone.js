@@ -169,6 +169,66 @@
     return `verse-${Math.random().toString(36).slice(2)}`;
   }
 
+  // src/archive.js
+  var ARCHIVE_APP = "greek-parsing";
+  var ARCHIVE_VERSION = 1;
+  function createDataArchive(data, exportedAt = (/* @__PURE__ */ new Date()).toISOString()) {
+    return {
+      app: ARCHIVE_APP,
+      version: ARCHIVE_VERSION,
+      exportedAt,
+      data: normalizeArchiveData(data)
+    };
+  }
+  function parseDataArchive(text) {
+    let parsed;
+    try {
+      parsed = JSON.parse(text);
+    } catch (e) {
+      throw new Error("\u7121\u6CD5\u8B80\u53D6\u5B58\u6A94\uFF0C\u8ACB\u78BA\u8A8D\u6A94\u6848\u662F\u6709\u6548\u7684 JSON\u3002");
+    }
+    if (!parsed || parsed.app !== ARCHIVE_APP || parsed.version !== ARCHIVE_VERSION || !parsed.data) {
+      throw new Error("\u9019\u4E0D\u662F Greek Parsing \u5B58\u6A94\uFF0C\u6216\u5B58\u6A94\u7248\u672C\u4E0D\u76F8\u5BB9\u3002");
+    }
+    return normalizeArchiveData(parsed.data);
+  }
+  function mergeImportedData(current, imported) {
+    const currentData = normalizeArchiveData(current);
+    const importedData = normalizeArchiveData(imported);
+    const lessonsById = new Map(currentData.lessons.map((lesson) => [lesson.id, lesson]));
+    importedData.lessons.forEach((lesson) => lessonsById.set(lesson.id, lesson));
+    return {
+      lessons: Array.from(lessonsById.values()),
+      practiceDrafts: {
+        ...currentData.practiceDrafts,
+        ...importedData.practiceDrafts
+      },
+      standardAnswers: {
+        ...currentData.standardAnswers,
+        ...importedData.standardAnswers
+      }
+    };
+  }
+  function importSummary(data) {
+    const normalized = normalizeArchiveData(data);
+    return `\u5C07\u532F\u5165 ${normalized.lessons.length} \u7D44\u8AB2\u7A0B\u3001${Object.keys(normalized.practiceDrafts).length} \u4EFD\u8349\u7A3F\u3001${Object.keys(normalized.standardAnswers).length} \u7BC0\u6A19\u6E96\u7B54\u6848\u3002`;
+  }
+  function normalizeArchiveData(data = {}) {
+    return {
+      lessons: Array.isArray(data.lessons) ? data.lessons.filter(isLessonRecord) : [],
+      practiceDrafts: plainObject(data.practiceDrafts),
+      standardAnswers: plainObject(data.standardAnswers)
+    };
+  }
+  function isLessonRecord(lesson) {
+    return Boolean(
+      lesson && typeof lesson.id === "string" && typeof lesson.name === "string" && Array.isArray(lesson.items)
+    );
+  }
+  function plainObject(value) {
+    return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  }
+
   // src/escape.js
   function escapeHtml(value) {
     return String(value == null ? "" : value).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -249,7 +309,7 @@
       const raw = storage.getItem(LESSON_STORAGE_KEY);
       if (!raw) return [];
       const parsed = JSON.parse(raw);
-      return Array.isArray(parsed) ? parsed.filter(isLessonRecord) : [];
+      return Array.isArray(parsed) ? parsed.filter(isLessonRecord2) : [];
     } catch (e) {
       return [];
     }
@@ -260,7 +320,7 @@
     } catch (e) {
     }
   }
-  function isLessonRecord(lesson) {
+  function isLessonRecord2(lesson) {
     return Boolean(
       lesson && typeof lesson.id === "string" && typeof lesson.name === "string" && Array.isArray(lesson.items)
     );
@@ -8919,6 +8979,16 @@
         <button data-action="load-lesson" ${state.selectedLessonId ? "" : "disabled"}>\u8F09\u5165\u8AB2\u7A0B</button>
         <button data-action="delete-lesson" ${state.selectedLessonId ? "" : "disabled"}>\u522A\u9664\u8AB2\u7A0B</button>
       </div>
+      <section class="tool-section backup-panel">
+        <div class="section-title">
+          <p class="label">\u8CC7\u6599\u5099\u4EFD</p>
+        </div>
+        <div class="button-row wrap">
+          <button data-action="export-data">\u532F\u51FA\u5B58\u6A94</button>
+          <button data-action="import-data">\u532F\u5165\u5B58\u6A94</button>
+        </div>
+        <input data-import-file type="file" accept="application/json,.json" hidden>
+      </section>
     </section>
   `;
   }
@@ -9029,6 +9099,10 @@
         state.layoutDensity = densityFromSliderValue(event.currentTarget.value);
         render();
       });
+    }
+    const importFileInput = app.querySelector("[data-import-file]");
+    if (importFileInput) {
+      importFileInput.addEventListener("change", handleImportFile);
     }
     app.querySelectorAll("button[data-action]").forEach((button) => {
       button.addEventListener("click", handleAction);
@@ -9156,6 +9230,11 @@
     if (action === "save-lesson") saveCurrentLesson();
     if (action === "load-lesson") loadSelectedLesson();
     if (action === "delete-lesson") deleteSelectedLesson();
+    if (action === "export-data") exportSavedData();
+    if (action === "import-data") {
+      const input = app.querySelector("[data-import-file]");
+      if (input) input.click();
+    }
   }
   function choicesFor(kind) {
     if (kind === "chapter") {
@@ -9282,6 +9361,57 @@
   function printWorksheet() {
     applyPrintOrientation();
     window.print();
+  }
+  function exportSavedData() {
+    const archive = createDataArchive({
+      lessons: state.lessons,
+      practiceDrafts: state.practiceDrafts,
+      standardAnswers: state.standardAnswers
+    });
+    const blob = new Blob([JSON.stringify(archive, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `greek-parsing-backup-${(/* @__PURE__ */ new Date()).toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  }
+  function handleImportFile(event) {
+    const [file] = event.currentTarget.files || [];
+    event.currentTarget.value = "";
+    if (!file) return;
+    const reader = new FileReader();
+    reader.addEventListener("load", () => {
+      try {
+        importSavedData(String(reader.result || ""));
+      } catch (error) {
+        window.alert(error && error.message ? error.message : "\u532F\u5165\u5B58\u6A94\u5931\u6557\u3002");
+      }
+    });
+    reader.addEventListener("error", () => {
+      window.alert("\u7121\u6CD5\u8B80\u53D6\u9019\u500B\u5B58\u6A94\u3002");
+    });
+    reader.readAsText(file);
+  }
+  function importSavedData(text) {
+    const imported = parseDataArchive(text);
+    const confirmed = window.confirm(`${importSummary(imported)}
+\u540C ID \u7684\u8AB2\u7A0B\u3001\u8349\u7A3F\u8207\u540C\u7D93\u6587\u6A19\u6E96\u7B54\u6848\u6703\u88AB\u532F\u5165\u8CC7\u6599\u8986\u84CB\u3002`);
+    if (!confirmed) return;
+    const merged = mergeImportedData({
+      lessons: state.lessons,
+      practiceDrafts: state.practiceDrafts,
+      standardAnswers: state.standardAnswers
+    }, imported);
+    state.lessons = merged.lessons;
+    state.practiceDrafts = merged.practiceDrafts;
+    state.standardAnswers = merged.standardAnswers;
+    saveLessons(state.lessons);
+    savePracticeDrafts(state.practiceDrafts);
+    saveStandardAnswers(state.standardAnswers);
+    render();
   }
   function applyPrintOrientation() {
     let style = document.querySelector("#print-orientation");

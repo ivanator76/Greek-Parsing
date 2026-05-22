@@ -5,6 +5,12 @@ import {
   updateVerseLineTranslation,
   wrapVerse
 } from "./layout.js";
+import {
+  createDataArchive,
+  importSummary,
+  mergeImportedData,
+  parseDataArchive
+} from "./archive.js";
 import { escapeHtml } from "./escape.js";
 import { preferredVerseIdForEditing } from "./focused-verse.js";
 import {
@@ -343,6 +349,16 @@ function renderLessonPanel() {
         <button data-action="load-lesson" ${state.selectedLessonId ? "" : "disabled"}>載入課程</button>
         <button data-action="delete-lesson" ${state.selectedLessonId ? "" : "disabled"}>刪除課程</button>
       </div>
+      <section class="tool-section backup-panel">
+        <div class="section-title">
+          <p class="label">資料備份</p>
+        </div>
+        <div class="button-row wrap">
+          <button data-action="export-data">匯出存檔</button>
+          <button data-action="import-data">匯入存檔</button>
+        </div>
+        <input data-import-file type="file" accept="application/json,.json" hidden>
+      </section>
     </section>
   `;
 }
@@ -461,6 +477,11 @@ function bindEvents() {
       state.layoutDensity = densityFromSliderValue(event.currentTarget.value);
       render();
     });
+  }
+
+  const importFileInput = app.querySelector("[data-import-file]");
+  if (importFileInput) {
+    importFileInput.addEventListener("change", handleImportFile);
   }
 
   app.querySelectorAll("button[data-action]").forEach((button) => {
@@ -602,6 +623,11 @@ function handleAction(event) {
   if (action === "save-lesson") saveCurrentLesson();
   if (action === "load-lesson") loadSelectedLesson();
   if (action === "delete-lesson") deleteSelectedLesson();
+  if (action === "export-data") exportSavedData();
+  if (action === "import-data") {
+    const input = app.querySelector("[data-import-file]");
+    if (input) input.click();
+  }
 }
 
 function choicesFor(kind) {
@@ -745,6 +771,60 @@ function updateVerse(verseId, updater) {
 function printWorksheet() {
   applyPrintOrientation();
   window.print();
+}
+
+function exportSavedData() {
+  const archive = createDataArchive({
+    lessons: state.lessons,
+    practiceDrafts: state.practiceDrafts,
+    standardAnswers: state.standardAnswers
+  });
+  const blob = new Blob([JSON.stringify(archive, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `greek-parsing-backup-${new Date().toISOString().slice(0, 10)}.json`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function handleImportFile(event) {
+  const [file] = event.currentTarget.files || [];
+  event.currentTarget.value = "";
+  if (!file) return;
+  const reader = new FileReader();
+  reader.addEventListener("load", () => {
+    try {
+      importSavedData(String(reader.result || ""));
+    } catch (error) {
+      window.alert(error && error.message ? error.message : "匯入存檔失敗。");
+    }
+  });
+  reader.addEventListener("error", () => {
+    window.alert("無法讀取這個存檔。");
+  });
+  reader.readAsText(file);
+}
+
+function importSavedData(text) {
+  const imported = parseDataArchive(text);
+  const confirmed = window.confirm(`${importSummary(imported)}\n同 ID 的課程、草稿與同經文標準答案會被匯入資料覆蓋。`);
+  if (!confirmed) return;
+
+  const merged = mergeImportedData({
+    lessons: state.lessons,
+    practiceDrafts: state.practiceDrafts,
+    standardAnswers: state.standardAnswers
+  }, imported);
+  state.lessons = merged.lessons;
+  state.practiceDrafts = merged.practiceDrafts;
+  state.standardAnswers = merged.standardAnswers;
+  saveLessons(state.lessons);
+  savePracticeDrafts(state.practiceDrafts);
+  saveStandardAnswers(state.standardAnswers);
+  render();
 }
 
 function applyPrintOrientation() {

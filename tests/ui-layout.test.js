@@ -32,3 +32,12 @@ test("side panel scrolls independently when its content exceeds the viewport", (
   assert.match(cssSource, /\.side-panel\s*\{[^}]*overflow-y:\s*auto;/s);
   assert.match(cssSource, /\.side-panel\s*\{[^}]*overscroll-behavior:\s*contain;/s);
 });
+
+test("lesson panel exposes import and export controls for saved data", () => {
+  const lessonPanel = functionBody("renderLessonPanel");
+
+  assert.match(lessonPanel, /資料備份/);
+  assert.match(lessonPanel, /data-action="export-data"/);
+  assert.match(lessonPanel, /data-action="import-data"/);
+  assert.match(lessonPanel, /data-import-file/);
+});
