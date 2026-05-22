@@ -17111,6 +17111,13 @@
   `;
     bindEvents();
   }
+  function renderPreservingSidePanelScroll() {
+    const sidePanel = app.querySelector(".side-panel");
+    const scrollTop = sidePanel ? sidePanel.scrollTop : 0;
+    render();
+    const nextSidePanel = app.querySelector(".side-panel");
+    if (nextSidePanel) nextSidePanel.scrollTop = scrollTop;
+  }
   function renderToolbar() {
     const chapters = choicesFor("chapter");
     const verses = choicesFor("verse");
@@ -17364,20 +17371,19 @@
       </label>
       <button class="wide-button primary" data-action="save-lesson" ${state.verses.length ? "" : "disabled"}>\u5132\u5B58\u76EE\u524D\u7D93\u6587\u70BA\u8AB2\u7A0B</button>
       <button class="wide-button" data-action="new-practice-page" ${state.verses.length || state.selectedLessonId || state.activeLessonId ? "" : "disabled"}>\u96E2\u958B\u8AB2\u7A0B / \u65B0\u589E\u7A7A\u767D\u9801</button>
-      <label class="stacked-label">
-        \u5DF2\u5132\u5B58\u8AB2\u7A0B
-        <select data-lesson-picker>
-          <option value="">\u9078\u64C7\u8AB2\u7A0B</option>
-          ${state.lessons.map((lesson) => `
-            <option value="${escapeAttr(lesson.id)}" ${lesson.id === state.selectedLessonId ? "selected" : ""}>
-              ${escapeHtml(lesson.name)}
-            </option>
-          `).join("")}
-        </select>
-      </label>
-      <div class="button-row wrap">
-        <button data-action="load-lesson" ${state.selectedLessonId ? "" : "disabled"}>\u8F09\u5165\u8AB2\u7A0B</button>
-        <button data-action="delete-lesson" ${state.selectedLessonId ? "" : "disabled"}>\u522A\u9664\u8AB2\u7A0B</button>
+      <div class="stacked-label">
+        <span>\u5DF2\u5132\u5B58\u8AB2\u7A0B</span>
+        <div class="lesson-picker-row">
+          <select data-lesson-picker>
+            <option value="">\u9078\u64C7\u8AB2\u7A0B</option>
+            ${state.lessons.map((lesson) => `
+              <option value="${escapeAttr(lesson.id)}" ${lesson.id === state.selectedLessonId ? "selected" : ""}>
+                ${escapeHtml(lesson.name)}
+              </option>
+            `).join("")}
+          </select>
+          <button class="delete-lesson-button" data-action="delete-lesson" aria-label="\u522A\u9664\u9078\u53D6\u8AB2\u7A0B" title="\u522A\u9664\u9078\u53D6\u8AB2\u7A0B" ${state.selectedLessonId ? "" : "disabled"}>\xD7</button>
+        </div>
       </div>
       <section class="tool-section backup-panel">
         <div class="section-title">
@@ -17489,9 +17495,12 @@
     if (lessonPicker) {
       lessonPicker.addEventListener("change", (event) => {
         state.selectedLessonId = event.currentTarget.value;
-        const lesson = selectedLesson();
-        if (lesson) state.lessonName = lesson.name;
-        render();
+        if (state.selectedLessonId) {
+          loadSelectedLesson();
+          return;
+        }
+        state.lessonName = "";
+        renderPreservingSidePanelScroll();
       });
     }
     const densityRange = app.querySelector("[data-density-range]");
@@ -17523,7 +17532,7 @@
     app.querySelectorAll("[data-tab]").forEach((button) => {
       button.addEventListener("click", (event) => {
         state.activeTool = event.currentTarget.dataset.tab;
-        render();
+        renderPreservingSidePanelScroll();
       });
     });
   }
@@ -17640,18 +17649,17 @@
     if (action === "toggle-study-tools") {
       state.showStudyTools = !state.showStudyTools;
       state.activeTool = "\u8A9E\u6CD5";
-      render();
+      renderPreservingSidePanelScroll();
     }
     if (action === "insert-tag") insertTag(button.dataset.tag);
     if (action === "remove-tag") {
       tagStore.remove(button.dataset.tag);
-      render();
+      renderPreservingSidePanelScroll();
     }
     if (action === "add-tag") addTag();
     if (action === "lookup-local-word") lookupSelectedWord();
     if (action === "fill-local-morphology") fillLocalMorphology(button.dataset.morphology);
     if (action === "save-lesson") saveCurrentLesson();
-    if (action === "load-lesson") loadSelectedLesson();
     if (action === "delete-lesson") deleteSelectedLesson();
     if (action === "export-data") exportSavedData();
     if (action === "import-data") {
@@ -17760,30 +17768,30 @@
     const selected = getSelectedWord();
     const key = selectedLookupKey(selected);
     state.lexiconLookup = { key, status: "loading", result: null };
-    render();
+    renderPreservingSidePanelScroll();
     const result = await lookupWord(selected);
     state.lexiconLookup = { key, status: "done", result };
-    render();
+    renderPreservingSidePanelScroll();
   }
   function insertTag(tag) {
     const { verseId, wordIndex } = state.selected;
     if (!verseId) return;
     updateVerse(verseId, (verse) => updateVerseCell(verse, "syntax", wordIndex, tag));
     persistActiveDraft();
-    render();
+    renderPreservingSidePanelScroll();
   }
   function addTag() {
     const tag = window.prompt("\u65B0\u589E\u8A9E\u6CD5\u6A19\u8A18\uFF0C\u4F8B\u5982 PP~Adj");
     if (!tag) return;
     tagStore.add(tag);
-    render();
+    renderPreservingSidePanelScroll();
   }
   function fillLocalMorphology(morphology) {
     const { verseId, wordIndex } = state.selected;
     if (!verseId || !morphology) return;
     updateVerse(verseId, (verse) => updateVerseCell(verse, "morphology", wordIndex, morphology));
     persistActiveDraft();
-    render();
+    renderPreservingSidePanelScroll();
   }
   function updateVerse(verseId, updater) {
     state.verses = state.verses.map((verse) => verse.id === verseId ? updater(verse) : verse);
@@ -17963,7 +17971,7 @@
     state.selected = { verseId: state.verses[0] ? state.verses[0].id : null, wordIndex: 0 };
     state.activeLessonId = lesson.id;
     state.lessonName = lesson.name;
-    render();
+    renderPreservingSidePanelScroll();
   }
   function deleteSelectedLesson() {
     const lesson = selectedLesson();
@@ -17972,11 +17980,10 @@
     if (!confirmed) return;
     state.lessons = state.lessons.filter((item) => item.id !== lesson.id);
     state.practiceDrafts = clearPracticeDraft(state.practiceDrafts, lesson.id);
-    state.selectedLessonId = "";
-    if (state.activeLessonId === lesson.id) state.activeLessonId = "";
+    Object.assign(state, clearPracticePage(state));
     saveLessons(state.lessons);
     savePracticeDrafts(state.practiceDrafts);
-    render();
+    renderPreservingSidePanelScroll();
   }
   function selectedLesson() {
     return state.lessons.find((lesson) => lesson.id === state.selectedLessonId);

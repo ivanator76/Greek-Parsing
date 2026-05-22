@@ -126,6 +126,14 @@ function render() {
   bindEvents();
 }
 
+function renderPreservingSidePanelScroll() {
+  const sidePanel = app.querySelector(".side-panel");
+  const scrollTop = sidePanel ? sidePanel.scrollTop : 0;
+  render();
+  const nextSidePanel = app.querySelector(".side-panel");
+  if (nextSidePanel) nextSidePanel.scrollTop = scrollTop;
+}
+
 function renderToolbar() {
   const chapters = choicesFor("chapter");
   const verses = choicesFor("verse");
@@ -397,20 +405,19 @@ function renderLessonPanel() {
       </label>
       <button class="wide-button primary" data-action="save-lesson" ${state.verses.length ? "" : "disabled"}>儲存目前經文為課程</button>
       <button class="wide-button" data-action="new-practice-page" ${state.verses.length || state.selectedLessonId || state.activeLessonId ? "" : "disabled"}>離開課程 / 新增空白頁</button>
-      <label class="stacked-label">
-        已儲存課程
-        <select data-lesson-picker>
-          <option value="">選擇課程</option>
-          ${state.lessons.map((lesson) => `
-            <option value="${escapeAttr(lesson.id)}" ${lesson.id === state.selectedLessonId ? "selected" : ""}>
-              ${escapeHtml(lesson.name)}
-            </option>
-          `).join("")}
-        </select>
-      </label>
-      <div class="button-row wrap">
-        <button data-action="load-lesson" ${state.selectedLessonId ? "" : "disabled"}>載入課程</button>
-        <button data-action="delete-lesson" ${state.selectedLessonId ? "" : "disabled"}>刪除課程</button>
+      <div class="stacked-label">
+        <span>已儲存課程</span>
+        <div class="lesson-picker-row">
+          <select data-lesson-picker>
+            <option value="">選擇課程</option>
+            ${state.lessons.map((lesson) => `
+              <option value="${escapeAttr(lesson.id)}" ${lesson.id === state.selectedLessonId ? "selected" : ""}>
+                ${escapeHtml(lesson.name)}
+              </option>
+            `).join("")}
+          </select>
+          <button class="delete-lesson-button" data-action="delete-lesson" aria-label="刪除選取課程" title="刪除選取課程" ${state.selectedLessonId ? "" : "disabled"}>×</button>
+        </div>
       </div>
       <section class="tool-section backup-panel">
         <div class="section-title">
@@ -529,9 +536,12 @@ function bindEvents() {
   if (lessonPicker) {
     lessonPicker.addEventListener("change", (event) => {
       state.selectedLessonId = event.currentTarget.value;
-      const lesson = selectedLesson();
-      if (lesson) state.lessonName = lesson.name;
-      render();
+      if (state.selectedLessonId) {
+        loadSelectedLesson();
+        return;
+      }
+      state.lessonName = "";
+      renderPreservingSidePanelScroll();
     });
   }
 
@@ -569,7 +579,7 @@ function bindEvents() {
   app.querySelectorAll("[data-tab]").forEach((button) => {
     button.addEventListener("click", (event) => {
       state.activeTool = event.currentTarget.dataset.tab;
-      render();
+      renderPreservingSidePanelScroll();
     });
   });
 }
@@ -699,18 +709,17 @@ function handleAction(event) {
   if (action === "toggle-study-tools") {
     state.showStudyTools = !state.showStudyTools;
     state.activeTool = "語法";
-    render();
+    renderPreservingSidePanelScroll();
   }
   if (action === "insert-tag") insertTag(button.dataset.tag);
   if (action === "remove-tag") {
     tagStore.remove(button.dataset.tag);
-    render();
+    renderPreservingSidePanelScroll();
   }
   if (action === "add-tag") addTag();
   if (action === "lookup-local-word") lookupSelectedWord();
   if (action === "fill-local-morphology") fillLocalMorphology(button.dataset.morphology);
   if (action === "save-lesson") saveCurrentLesson();
-  if (action === "load-lesson") loadSelectedLesson();
   if (action === "delete-lesson") deleteSelectedLesson();
   if (action === "export-data") exportSavedData();
   if (action === "import-data") {
@@ -831,10 +840,10 @@ async function lookupSelectedWord() {
   const selected = getSelectedWord();
   const key = selectedLookupKey(selected);
   state.lexiconLookup = { key, status: "loading", result: null };
-  render();
+  renderPreservingSidePanelScroll();
   const result = await lookupWord(selected);
   state.lexiconLookup = { key, status: "done", result };
-  render();
+  renderPreservingSidePanelScroll();
 }
 
 function insertTag(tag) {
@@ -842,14 +851,14 @@ function insertTag(tag) {
   if (!verseId) return;
   updateVerse(verseId, (verse) => updateVerseCell(verse, "syntax", wordIndex, tag));
   persistActiveDraft();
-  render();
+  renderPreservingSidePanelScroll();
 }
 
 function addTag() {
   const tag = window.prompt("新增語法標記，例如 PP~Adj");
   if (!tag) return;
   tagStore.add(tag);
-  render();
+  renderPreservingSidePanelScroll();
 }
 
 function fillLocalMorphology(morphology) {
@@ -857,7 +866,7 @@ function fillLocalMorphology(morphology) {
   if (!verseId || !morphology) return;
   updateVerse(verseId, (verse) => updateVerseCell(verse, "morphology", wordIndex, morphology));
   persistActiveDraft();
-  render();
+  renderPreservingSidePanelScroll();
 }
 
 function updateVerse(verseId, updater) {
@@ -1067,7 +1076,7 @@ function loadSelectedLesson() {
   state.selected = { verseId: state.verses[0] ? state.verses[0].id : null, wordIndex: 0 };
   state.activeLessonId = lesson.id;
   state.lessonName = lesson.name;
-  render();
+  renderPreservingSidePanelScroll();
 }
 
 function deleteSelectedLesson() {
@@ -1077,11 +1086,10 @@ function deleteSelectedLesson() {
   if (!confirmed) return;
   state.lessons = state.lessons.filter((item) => item.id !== lesson.id);
   state.practiceDrafts = clearPracticeDraft(state.practiceDrafts, lesson.id);
-  state.selectedLessonId = "";
-  if (state.activeLessonId === lesson.id) state.activeLessonId = "";
+  Object.assign(state, clearPracticePage(state));
   saveLessons(state.lessons);
   savePracticeDrafts(state.practiceDrafts);
-  render();
+  renderPreservingSidePanelScroll();
 }
 
 function selectedLesson() {

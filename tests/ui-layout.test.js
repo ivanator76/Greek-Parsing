@@ -75,6 +75,22 @@ test("lesson panel exposes import and export controls for saved data", () => {
   assert.match(cssSource, /\.privacy-note\s*\{/);
 });
 
+test("lesson picker loads immediately and keeps deletion beside the menu", () => {
+  const lessonPanel = functionBody("renderLessonPanel");
+  const bindEvents = functionBody("bindEvents");
+  const deleteLesson = functionBody("deleteSelectedLesson");
+
+  assert.match(lessonPanel, /class="lesson-picker-row"/);
+  assert.match(lessonPanel, /<select data-lesson-picker>[\s\S]*data-action="delete-lesson"/);
+  assert.doesNotMatch(lessonPanel, /data-action="load-lesson"/);
+  assert.match(lessonPanel, /class="delete-lesson-button"/);
+  assert.match(bindEvents, /lessonPicker[\s\S]*loadSelectedLesson\(\);/);
+  assert.doesNotMatch(appSource, /if \(action === "load-lesson"\)/);
+  assert.match(deleteLesson, /clearPracticePage\(state\)/);
+  assert.match(deleteLesson, /renderPreservingSidePanelScroll\(\);/);
+  assert.match(cssSource, /\.delete-lesson-button\s*\{[^}]*color:\s*#b42318;/s);
+});
+
 test("page panel exposes a Greek text import control for user-owned NA28 or UBS5 text", () => {
   const greekTextPanel = functionBody("renderGreekTextPanel");
 
@@ -98,4 +114,20 @@ test("keyboard navigation does not intercept IME composition keys", () => {
   assert.match(appSource, /event\.isComposing/);
   assert.match(appSource, /event\.key === "Process"/);
   assert.match(appSource, /event\.keyCode === 229/);
+});
+
+test("side panel controls preserve the side panel scroll position", () => {
+  const preserveScroll = functionBody("renderPreservingSidePanelScroll");
+
+  assert.match(preserveScroll, /querySelector\("\.side-panel"\)/);
+  assert.match(preserveScroll, /scrollTop/);
+  assert.match(appSource, /lessonPicker[\s\S]*renderPreservingSidePanelScroll\(\);/);
+  assert.match(appSource, /function loadSelectedLesson\(\)[\s\S]*renderPreservingSidePanelScroll\(\);/);
+  assert.match(appSource, /data-tab[\s\S]*renderPreservingSidePanelScroll\(\);/);
+  assert.match(appSource, /action === "toggle-study-tools"[\s\S]*renderPreservingSidePanelScroll\(\);/);
+  assert.match(appSource, /function lookupSelectedWord\(\)[\s\S]*renderPreservingSidePanelScroll\(\);[\s\S]*renderPreservingSidePanelScroll\(\);/);
+  assert.match(appSource, /function insertTag\(tag\)[\s\S]*renderPreservingSidePanelScroll\(\);/);
+  assert.match(appSource, /function addTag\(\)[\s\S]*renderPreservingSidePanelScroll\(\);/);
+  assert.match(appSource, /function fillLocalMorphology\(morphology\)[\s\S]*renderPreservingSidePanelScroll\(\);/);
+  assert.match(appSource, /action === "remove-tag"[\s\S]*renderPreservingSidePanelScroll\(\);/);
 });

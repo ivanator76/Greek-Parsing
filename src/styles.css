@@ -739,6 +739,21 @@ dd {
   width: 100%;
 }
 
+.lesson-picker-row {
+  align-items: center;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: minmax(0, 1fr) 34px;
+}
+
+.delete-lesson-button {
+  color: #b42318;
+  font-size: 18px;
+  font-weight: 800;
+  min-height: 32px;
+  padding: 0;
+}
+
 .lesson-panel {
   margin-top: 14px;
 }
