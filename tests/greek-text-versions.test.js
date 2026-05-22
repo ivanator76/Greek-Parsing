@@ -31,12 +31,17 @@ test("parseImportedGreekTextVersion requires a name and verse text", () => {
   assert.throws(() => parseImportedGreekTextVersion(JSON.stringify({ name: "UBS5" })), /verses/);
 });
 
-test("selectedGreekTextVersion falls back to Tischendorf", () => {
+test("built-in Greek text versions default to SBLGNT and retain Tischendorf", () => {
   const versions = allGreekTextVersions([]);
   const selected = selectedGreekTextVersion({ versions, selectedId: "missing" });
 
   assert.equal(selected.id, DEFAULT_GREEK_TEXT_VERSION_ID);
-  assert.equal(greekTextSourceLabel(selected), "希臘原文：Tischendorf Greek New Testament");
+  assert.equal(selected.id, "sblgnt");
+  assert.equal(Object.keys(selected.verses).length, 7939);
+  assert.match(selected.verses["1 John.4.19"], /^ἡμεῖς ἀγαπῶμεν/);
+  assert.equal(versions[1].id, "tischendorf");
+  assert.match(greekTextSourceLabel(selected), /希臘原文：SBL Greek New Testament/);
+  assert.match(greekTextSourceLabel(selected), /CC BY 4\.0/);
 });
 
 test("greekTextSourceLabel includes source detail for imported text", () => {

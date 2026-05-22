@@ -15,6 +15,7 @@ export function createPracticeDraft(lessonId, verses, updatedAt = new Date().toI
     }, {}),
     layout: verses.reduce((layout, verse) => {
       layout[verse.reference] = {
+        greek: verse.greek,
         lineBreaks: Array.isArray(verse.lineBreaks) ? [...verse.lineBreaks] : [],
         lineTranslations: { ...(verse.lineTranslations || {}) }
       };
@@ -29,14 +30,18 @@ export function applyPracticeDraft(verses, draft) {
     const answer = draft.answers && draft.answers[verse.reference];
     const layout = draft.layout && draft.layout[verse.reference];
     if (!answer && !layout) return verse;
+    const greek = layout && layout.greek ? String(layout.greek) : verse.greek;
+    const words = layout && layout.greek ? splitWords(greek) : verse.words;
     return {
       ...verse,
-      syntax: answer ? normalizeRow(answer.syntax, verse.words.length) : verse.syntax,
-      morphology: answer ? normalizeRow(answer.morphology, verse.words.length) : verse.morphology,
-      gloss: answer ? normalizeRow(answer.gloss, verse.words.length) : verse.gloss,
+      greek,
+      words,
+      syntax: answer ? normalizeRow(answer.syntax, words.length) : normalizeRow(verse.syntax, words.length),
+      morphology: answer ? normalizeRow(answer.morphology, words.length) : normalizeRow(verse.morphology, words.length),
+      gloss: answer ? normalizeRow(answer.gloss, words.length) : normalizeRow(verse.gloss, words.length),
       translation: answer && answer.translation != null ? answer.translation : verse.translation,
-      lineBreaks: layout ? normalizeLineBreaks(layout.lineBreaks, verse.words.length) : verse.lineBreaks,
-      lineTranslations: layout ? normalizeLineTranslations(layout.lineTranslations, verse.words.length) : verse.lineTranslations
+      lineBreaks: layout ? normalizeLineBreaks(layout.lineBreaks, words.length) : verse.lineBreaks,
+      lineTranslations: layout ? normalizeLineTranslations(layout.lineTranslations, words.length) : verse.lineTranslations
     };
   });
 }
@@ -77,6 +82,10 @@ export function savePracticeDrafts(drafts, storage = getLocalStorage()) {
 
 function normalizeRow(row = [], length) {
   return Array.from({ length }, (_, index) => row[index] == null ? "" : row[index]);
+}
+
+function splitWords(greek) {
+  return greek.trim().split(/\s+/).filter(Boolean);
 }
 
 function normalizeLineBreaks(lineBreaks = [], length) {

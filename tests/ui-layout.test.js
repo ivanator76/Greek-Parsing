@@ -84,3 +84,8 @@ test("page panel exposes a Greek text import control for user-owned NA28 or UBS5
   assert.match(greekTextPanel, /匯入 NA28 \/ UBS5/);
   assert.match(greekTextPanel, /data-greek-text-import-file/);
 });
+
+test("editing Greek text persists changes for the active lesson", () => {
+  assert.match(appSource, /function persistActiveLessonGreekText\(\)/);
+  assert.match(appSource, /if \(verse\) \{[\s\S]*persistActiveLessonGreekText\(\);[\s\S]*persistActiveDraft\(\);/);
+});

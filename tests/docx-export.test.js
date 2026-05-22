@@ -37,7 +37,8 @@ test("createWorksheetDocxBlob creates a Word document package", async () => {
   assert.match(text, /\[Content_Types\]\.xml/);
   assert.match(text, /word\/document\.xml/);
   assert.match(text, /Mark 3:14/);
-  assert.match(text, /希臘原文：Tischendorf Greek New Testament/);
+  assert.match(text, /希臘原文：SBL Greek New Testament/);
+  assert.match(text, /CC BY 4\.0/);
   assert.match(text, /και/);
   assert.match(text, /整句翻譯 他設立十二個人，也稱他們為使徒。/);
   assert.doesNotMatch(text, /\[空\]/);

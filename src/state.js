@@ -12,7 +12,7 @@ export function createInitialState() {
     reflowMode: false,
     sidePanelCollapsed: false,
     customGreekTextVersions: [],
-    selectedGreekTextVersionId: "tischendorf",
+    selectedGreekTextVersionId: "sblgnt",
     lessonName: "",
     selectedLessonId: "",
     activeLessonId: "",

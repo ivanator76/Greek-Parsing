@@ -1,11 +1,20 @@
 import { VERSE_TEXTS } from "./nt-texts.js";
+import { SBLGNT_VERSE_TEXTS } from "./sblgnt-texts.js";
 
-export const DEFAULT_GREEK_TEXT_VERSION_ID = "tischendorf";
+export const DEFAULT_GREEK_TEXT_VERSION_ID = "sblgnt";
 export const CUSTOM_GREEK_TEXT_STORAGE_KEY = "greekParsing.customGreekTexts.v1";
-export const SELECTED_GREEK_TEXT_STORAGE_KEY = "greekParsing.selectedGreekText.v1";
+export const SELECTED_GREEK_TEXT_STORAGE_KEY = "greekParsing.selectedGreekText.v2";
 
 export const DEFAULT_GREEK_TEXT_VERSION = {
   id: DEFAULT_GREEK_TEXT_VERSION_ID,
+  name: "SBL Greek New Testament",
+  source: "SBLGNT © 2010 Society of Biblical Literature and Logos Bible Software; CC BY 4.0",
+  builtIn: true,
+  verses: SBLGNT_VERSE_TEXTS
+};
+
+export const TISCHENDORF_GREEK_TEXT_VERSION = {
+  id: "tischendorf",
   name: "Tischendorf Greek New Testament",
   source: "",
   builtIn: true,
@@ -13,7 +22,7 @@ export const DEFAULT_GREEK_TEXT_VERSION = {
 };
 
 export function allGreekTextVersions(customVersions = []) {
-  return [DEFAULT_GREEK_TEXT_VERSION, ...customVersions];
+  return [DEFAULT_GREEK_TEXT_VERSION, TISCHENDORF_GREEK_TEXT_VERSION, ...customVersions];
 }
 
 export function selectedGreekTextVersion({ versions, selectedId }) {

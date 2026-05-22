@@ -41,6 +41,7 @@ test("createPracticeDraft stores answer rows and manual line breaks by verse ref
   assert.equal(draft.lessonId, "lesson-1");
   assert.deepEqual(draft.answers["Heb 3:7"].syntax, ["S", "V", "D", "N"]);
   assert.equal(draft.answers["Heb 3:7"].translation, "聖靈如此說");
+  assert.equal(draft.layout["Heb 3:7"].greek, "Καθως λεγει το πνευμα");
   assert.deepEqual(draft.layout["Heb 3:7"].lineBreaks, [1]);
   assert.deepEqual(draft.layout["Heb 3:7"].lineTranslations, { 0: "照著他說", 2: "這靈" });
 });
@@ -59,6 +60,28 @@ test("applyPracticeDraft restores saved answers and manual line breaks onto fres
   assert.equal(restored.translation, "聖靈如此說");
   assert.deepEqual(restored.lineBreaks, [1]);
   assert.deepEqual(restored.lineTranslations, { 0: "照著他說", 2: "這靈" });
+});
+
+test("applyPracticeDraft restores edited Greek text onto freshly loaded lesson verses", () => {
+  const blank = createBlankExercise({
+    id: "fresh-id",
+    reference: "Heb 3:7",
+    greek: "原本 希臘 文"
+  });
+  const edited = {
+    ...verse(),
+    greek: "編輯 後 希臘 文",
+    words: ["編輯", "後", "希臘", "文"],
+    syntax: ["", "", "", ""],
+    morphology: ["", "", "", ""],
+    gloss: ["", "", "", ""]
+  };
+  const draft = createPracticeDraft("lesson-1", [edited]);
+  const [restored] = applyPracticeDraft([blank], draft);
+
+  assert.equal(restored.greek, "編輯 後 希臘 文");
+  assert.deepEqual(restored.words, ["編輯", "後", "希臘", "文"]);
+  assert.deepEqual(restored.syntax, ["", "", "", ""]);
 });
 
 test("savePracticeDraft overwrites the draft for one lesson without touching others", () => {

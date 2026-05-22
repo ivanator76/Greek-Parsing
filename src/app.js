@@ -752,6 +752,8 @@ function editSelectedGreek() {
   if (!nextGreek) return;
   if (verse) {
     updateVerse(verse.id, (current) => updateVerseGreek(current, nextGreek));
+    persistActiveLessonGreekText();
+    persistActiveDraft();
   } else {
     const custom = createBlankExercise({
       id: createId(),
@@ -1085,6 +1087,21 @@ function persistActiveDraft() {
   if (!state.activeLessonId) return;
   state.practiceDrafts = savePracticeDraft(state.practiceDrafts, state.activeLessonId, state.verses);
   savePracticeDrafts(state.practiceDrafts);
+}
+
+function persistActiveLessonGreekText() {
+  if (!state.activeLessonId) return;
+  const lesson = state.lessons.find((item) => item.id === state.activeLessonId);
+  if (!lesson) return;
+  const greekByReference = Object.fromEntries(state.verses.map((verse) => [verse.reference, verse.greek]));
+  state.lessons = state.lessons.map((item) => item.id === state.activeLessonId ? {
+    ...item,
+    items: item.items.map((lessonItem) => ({
+      ...lessonItem,
+      greek: greekByReference[lessonItem.reference] || lessonItem.greek
+    }))
+  } : item);
+  saveLessons(state.lessons);
 }
 
 function clearActiveDraft() {
