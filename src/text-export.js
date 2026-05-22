@@ -3,6 +3,7 @@ import { GREEK_TEXT_SOURCE } from "./text-source.js";
 
 export function formatWorksheetText({
   verses,
+  sourceLabel = GREEK_TEXT_SOURCE,
   translationMode = "verse",
   maxColumns = 6,
   standardAnswers = {},
@@ -10,7 +11,7 @@ export function formatWorksheetText({
 }) {
   const lines = [
     "Koine Greek Parsing",
-    GREEK_TEXT_SOURCE,
+    sourceLabel,
     ""
   ];
 

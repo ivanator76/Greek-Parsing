@@ -71,4 +71,16 @@ test("lesson panel exposes import and export controls for saved data", () => {
   assert.match(lessonPanel, /data-action="export-data"/);
   assert.match(lessonPanel, /data-action="import-data"/);
   assert.match(lessonPanel, /data-import-file/);
+  assert.match(lessonPanel, /所有課程、草稿、標準答案與匯入文本都只存在本機瀏覽器，不會上傳到伺服器。/);
+  assert.match(cssSource, /\.privacy-note\s*\{/);
+});
+
+test("page panel exposes a Greek text import control for user-owned NA28 or UBS5 text", () => {
+  const greekTextPanel = functionBody("renderGreekTextPanel");
+
+  assert.match(greekTextPanel, /希臘文本/);
+  assert.match(greekTextPanel, /data-greek-text-version/);
+  assert.match(greekTextPanel, /data-action="import-greek-text"/);
+  assert.match(greekTextPanel, /匯入 NA28 \/ UBS5/);
+  assert.match(greekTextPanel, /data-greek-text-import-file/);
 });

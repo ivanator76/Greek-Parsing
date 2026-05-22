@@ -18,6 +18,13 @@ test("getGreekText returns empty string for verses whose source text has not bee
   assert.equal(getGreekText({ book: "Matthew", chapter: "99", verse: "1" }), "");
 });
 
+test("getGreekText can read from a selected imported text map", () => {
+  assert.equal(
+    getGreekText({ book: "John", chapter: "3", verse: "16" }, { "John.3.16": "Οὕτως γὰρ" }),
+    "Οὕτως γὰρ"
+  );
+});
+
 test("imported local Tischendorf text includes common classroom references", () => {
   assert.equal(Object.keys(VERSE_TEXTS).length, 7958);
   assert.match(getGreekText({ book: "Hebrews", chapter: "3", verse: "7" }), /^Διό,/);

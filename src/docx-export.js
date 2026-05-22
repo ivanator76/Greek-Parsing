@@ -6,6 +6,7 @@ const DOCX_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingm
 
 export function createWorksheetDocxBlob({
   verses,
+  sourceLabel = GREEK_TEXT_SOURCE,
   translationMode = "verse",
   maxColumns = 6,
   standardAnswers = {},
@@ -17,16 +18,16 @@ export function createWorksheetDocxBlob({
     { name: "word/styles.xml", content: stylesXml() },
     {
       name: "word/document.xml",
-      content: documentXml({ verses, translationMode, maxColumns, standardAnswers, expandedStandardAnswers })
+      content: documentXml({ verses, sourceLabel, translationMode, maxColumns, standardAnswers, expandedStandardAnswers })
     }
   ];
   return new Blob([createZip(files)], { type: DOCX_TYPE });
 }
 
-function documentXml({ verses, translationMode, maxColumns, standardAnswers, expandedStandardAnswers }) {
+function documentXml({ verses, sourceLabel, translationMode, maxColumns, standardAnswers, expandedStandardAnswers }) {
   const body = [];
   body.push(headingParagraph("Koine Greek Parsing", "Title"));
-  body.push(paragraph(GREEK_TEXT_SOURCE, "Subtitle"));
+  body.push(paragraph(sourceLabel, "Subtitle"));
 
   if (!verses.length) {
     body.push(paragraph("尚未加入經文"));

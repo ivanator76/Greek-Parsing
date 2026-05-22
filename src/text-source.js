@@ -1,1 +1,3 @@
-export const GREEK_TEXT_SOURCE = "希臘原文：Tischendorf Greek New Testament";
+import { DEFAULT_GREEK_TEXT_VERSION, greekTextSourceLabel } from "./greek-text-versions.js";
+
+export const GREEK_TEXT_SOURCE = greekTextSourceLabel(DEFAULT_GREEK_TEXT_VERSION);

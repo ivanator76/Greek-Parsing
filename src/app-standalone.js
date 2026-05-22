@@ -242,178 +242,6 @@
     return focusedVerseId(activeElement) || selectedVerseId || "";
   }
 
-  // src/worksheet.js
-  function createBlankExercise({ id, reference, greek, lineBreaks = [], lineTranslations = {} }) {
-    return createVerse({
-      id,
-      reference,
-      greek,
-      syntax: [],
-      morphology: [],
-      gloss: [],
-      translation: "",
-      lineBreaks,
-      lineTranslations
-    });
-  }
-
-  // src/lessons.js
-  var LESSON_STORAGE_KEY = "greek-parsing-lessons";
-  function normalizeLessonName(name) {
-    return name.trim().replace(/\s+/g, " ");
-  }
-  function createLessonRecord({ id, name, verses, createdAt = (/* @__PURE__ */ new Date()).toISOString() }) {
-    return {
-      id,
-      name: normalizeLessonName(name),
-      createdAt,
-      items: verses.map((verse) => ({
-        reference: verse.reference,
-        greek: verse.greek
-      }))
-    };
-  }
-  function hydrateLesson(lesson, createId2) {
-    return lesson.items.map((item) => createBlankExercise({
-      id: createId2(),
-      reference: item.reference,
-      greek: item.greek
-    }));
-  }
-  function clearVerseAnswers(verse) {
-    return createBlankExercise({
-      id: verse.id,
-      reference: verse.reference,
-      greek: verse.greek,
-      lineBreaks: verse.lineBreaks,
-      lineTranslations: verse.lineTranslations
-    });
-  }
-  function clearAllAnswers(verses) {
-    return verses.map(clearVerseAnswers);
-  }
-  function clearPracticePage(state2) {
-    return {
-      ...state2,
-      verses: [],
-      selected: { verseId: null, wordIndex: 0 },
-      selectedLessonId: "",
-      activeLessonId: "",
-      lessonName: "",
-      expandedStandardAnswers: {}
-    };
-  }
-  function loadLessons(storage = getLocalStorage()) {
-    try {
-      if (!storage) return [];
-      const raw = storage.getItem(LESSON_STORAGE_KEY);
-      if (!raw) return [];
-      const parsed = JSON.parse(raw);
-      return Array.isArray(parsed) ? parsed.filter(isLessonRecord2) : [];
-    } catch (e) {
-      return [];
-    }
-  }
-  function saveLessons(lessons, storage = getLocalStorage()) {
-    try {
-      if (storage) storage.setItem(LESSON_STORAGE_KEY, JSON.stringify(lessons));
-    } catch (e) {
-    }
-  }
-  function isLessonRecord2(lesson) {
-    return Boolean(
-      lesson && typeof lesson.id === "string" && typeof lesson.name === "string" && Array.isArray(lesson.items)
-    );
-  }
-  function getLocalStorage() {
-    try {
-      return globalThis.localStorage;
-    } catch (e) {
-      return null;
-    }
-  }
-
-  // src/lexicon.js
-  var cachedEntries = null;
-  async function lookupWord({ reference, wordIndex, word }) {
-    const entries = await loadLexiconEntries();
-    return lookupWordInEntries(entries, { reference, wordIndex, word });
-  }
-  function lookupWordInEntries(entries, { reference, wordIndex, word }) {
-    const entry = entries[`${reference}.${wordIndex}`];
-    if (!entry) {
-      return {
-        source: "none",
-        word,
-        lemma: "",
-        morphology: "",
-        strong: "",
-        normalized: ""
-      };
-    }
-    return {
-      source: "local",
-      word: entry.form,
-      lemma: entry.lemma,
-      morphology: formatMorphology(entry.morphology),
-      rawMorphology: entry.morphology,
-      strong: entry.strong,
-      normalized: entry.normalized
-    };
-  }
-  function formatMorphology(morphology) {
-    if (!morphology) return "";
-    const parts = morphology.split("-");
-    const partOfSpeech = parts[0];
-    if (partOfSpeech === "V" && parts[1]) {
-      return formatVerbMorphology(parts);
-    }
-    if (isNominalMorphology(partOfSpeech, parts[1])) {
-      return formatNominalMorphology(partOfSpeech, parts);
-    }
-    return morphology.replace(/-/g, "");
-  }
-  function formatVerbMorphology(parts) {
-    const verbalCode = parts[1];
-    const tense = verbalCode.slice(0, -2);
-    const voice = verbalCode.slice(-2, -1);
-    const mood = verbalCode.slice(-1);
-    const suffix = parts[2] || "";
-    if (!tense || !voice || !mood) {
-      return parts.join("");
-    }
-    if (mood === "P" && suffix.length >= 3) {
-      return `V${mood}${tense}${voice}${formatCaseGenderNumber(suffix)}`;
-    }
-    return `V${mood}${tense}${voice}${suffix}`;
-  }
-  function formatNominalMorphology(partOfSpeech, parts) {
-    const nominalCode = parts[1];
-    const suffix = parts.slice(2).join("");
-    return `${formatPartOfSpeech(partOfSpeech)}${formatCaseGenderNumber(nominalCode)}${suffix}`;
-  }
-  function formatCaseGenderNumber(code) {
-    if (code.length < 3) return code;
-    const [grammaticalCase, number, gender] = code;
-    return `${grammaticalCase}${gender}${number}${code.slice(3)}`;
-  }
-  function isNominalMorphology(partOfSpeech, code) {
-    return Boolean(code) && ["N", "T", "A"].includes(partOfSpeech) && code.length >= 3;
-  }
-  function formatPartOfSpeech(partOfSpeech) {
-    return partOfSpeech === "T" ? "D" : partOfSpeech;
-  }
-  async function loadLexiconEntries() {
-    if (!cachedEntries) {
-      const module = await import("./lexicon-data.js");
-      cachedEntries = module.LEXICON_ENTRIES;
-    }
-    return cachedEntries;
-  }
-  function makeExternalLookupUrl(word) {
-    return `https://logeion.uchicago.edu/${encodeURIComponent(word)}`;
-  }
-
   // src/nt-texts.js
   var VERSE_TEXTS = {
     "Matthew.1.1": "\u0392\u03AF\u03B2\u03BB\u03BF\u03C2 \u03B3\u03B5\u03BD\u03AD\u03C3\u03B5\u03C9\u03C2 \u1F38\u03B7\u03C3\u03BF\u1FE6 \u03A7\u03C1\u03B9\u03C3\u03C4\u03BF\u1FE6 \u03C5\u1F31\u03BF\u1FE6 \u0394\u03B1\u03C5\u03B5\u1F76\u03B4 \u03C5\u1F31\u03BF\u1FE6 \u1F08\u03B2\u03C1\u03B1\u03AC\u03BC.",
@@ -8376,6 +8204,267 @@
     "Revelation.22.21": "\u1F29 \u03C7\u03AC\u03C1\u03B9\u03C2 \u03C4\u03BF\u1FE6 \u03BA\u03C5\u03C1\u03AF\u03BF\u03C5 \u1F38\u03B7\u03C3\u03BF\u1FE6 \u03BC\u03B5\u03C4\u1F70 \u03C0\u03AC\u03BD\u03C4\u03C9\u03BD."
   };
 
+  // src/greek-text-versions.js
+  var DEFAULT_GREEK_TEXT_VERSION_ID = "tischendorf";
+  var CUSTOM_GREEK_TEXT_STORAGE_KEY = "greekParsing.customGreekTexts.v1";
+  var SELECTED_GREEK_TEXT_STORAGE_KEY = "greekParsing.selectedGreekText.v1";
+  var DEFAULT_GREEK_TEXT_VERSION = {
+    id: DEFAULT_GREEK_TEXT_VERSION_ID,
+    name: "Tischendorf Greek New Testament",
+    source: "",
+    builtIn: true,
+    verses: VERSE_TEXTS
+  };
+  function allGreekTextVersions(customVersions = []) {
+    return [DEFAULT_GREEK_TEXT_VERSION, ...customVersions];
+  }
+  function selectedGreekTextVersion({ versions, selectedId }) {
+    return versions.find((version) => version.id === selectedId) || DEFAULT_GREEK_TEXT_VERSION;
+  }
+  function greekTextSourceLabel(version = DEFAULT_GREEK_TEXT_VERSION) {
+    return `\u5E0C\u81D8\u539F\u6587\uFF1A${version.name}${version.source ? ` (${version.source})` : ""}`;
+  }
+  function loadCustomGreekTextVersions(storage = globalThis.localStorage) {
+    try {
+      const raw = storage && storage.getItem(CUSTOM_GREEK_TEXT_STORAGE_KEY);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return [];
+      return parsed.map(normalizeStoredVersion).filter(Boolean);
+    } catch (e) {
+      return [];
+    }
+  }
+  function saveCustomGreekTextVersions(versions, storage = globalThis.localStorage) {
+    if (!storage) return;
+    const portable = versions.map(({ id, name, source, verses }) => ({ id, name, source, verses }));
+    storage.setItem(CUSTOM_GREEK_TEXT_STORAGE_KEY, JSON.stringify(portable));
+  }
+  function loadSelectedGreekTextVersionId(storage = globalThis.localStorage) {
+    try {
+      return storage && storage.getItem(SELECTED_GREEK_TEXT_STORAGE_KEY) || DEFAULT_GREEK_TEXT_VERSION_ID;
+    } catch (e) {
+      return DEFAULT_GREEK_TEXT_VERSION_ID;
+    }
+  }
+  function saveSelectedGreekTextVersionId(id, storage = globalThis.localStorage) {
+    if (!storage) return;
+    storage.setItem(SELECTED_GREEK_TEXT_STORAGE_KEY, id || DEFAULT_GREEK_TEXT_VERSION_ID);
+  }
+  function parseImportedGreekTextVersion(text, { id = createVersionId() } = {}) {
+    const parsed = JSON.parse(text);
+    const name = String(parsed.name || "").trim();
+    if (!name) throw new Error("\u532F\u5165\u6A94\u9700\u8981 name\uFF0C\u4F8B\u5982 NA28 \u6216 UBS5\u3002");
+    const verses = normalizeVerseMap(parsed.verses);
+    if (!Object.keys(verses).length) {
+      throw new Error('\u532F\u5165\u6A94\u9700\u8981 verses\uFF0C\u683C\u5F0F\u4F8B\u5982 { "John.3.16": "\u039F\u1F55\u03C4\u03C9\u03C2..." }\u3002');
+    }
+    return {
+      id: String(parsed.id || id),
+      name,
+      source: String(parsed.source || "User-provided Greek text").trim(),
+      builtIn: false,
+      verses
+    };
+  }
+  function normalizeStoredVersion(value) {
+    if (!value || typeof value !== "object") return null;
+    try {
+      const verses = normalizeVerseMap(value.verses);
+      if (!Object.keys(verses).length) return null;
+      const name = String(value.name || "").trim();
+      if (!name) return null;
+      return {
+        id: String(value.id || createVersionId()),
+        name,
+        source: String(value.source || "User-provided Greek text").trim(),
+        builtIn: false,
+        verses
+      };
+    } catch (e) {
+      return null;
+    }
+  }
+  function normalizeVerseMap(verses) {
+    if (!verses || typeof verses !== "object" || Array.isArray(verses)) return {};
+    return Object.fromEntries(Object.entries(verses).map(([key, value]) => [String(key).trim(), String(value || "").trim()]).filter(([key, value]) => /^[1-3]?\s?[A-Za-z]+(?:\s[A-Za-z]+)?\.\d+\.\d+$/.test(key) && value));
+  }
+  function createVersionId() {
+    return `custom-${Date.now().toString(36)}`;
+  }
+
+  // src/worksheet.js
+  function createBlankExercise({ id, reference, greek, lineBreaks = [], lineTranslations = {} }) {
+    return createVerse({
+      id,
+      reference,
+      greek,
+      syntax: [],
+      morphology: [],
+      gloss: [],
+      translation: "",
+      lineBreaks,
+      lineTranslations
+    });
+  }
+
+  // src/lessons.js
+  var LESSON_STORAGE_KEY = "greek-parsing-lessons";
+  function normalizeLessonName(name) {
+    return name.trim().replace(/\s+/g, " ");
+  }
+  function createLessonRecord({ id, name, verses, createdAt = (/* @__PURE__ */ new Date()).toISOString() }) {
+    return {
+      id,
+      name: normalizeLessonName(name),
+      createdAt,
+      items: verses.map((verse) => ({
+        reference: verse.reference,
+        greek: verse.greek
+      }))
+    };
+  }
+  function hydrateLesson(lesson, createId2) {
+    return lesson.items.map((item) => createBlankExercise({
+      id: createId2(),
+      reference: item.reference,
+      greek: item.greek
+    }));
+  }
+  function clearVerseAnswers(verse) {
+    return createBlankExercise({
+      id: verse.id,
+      reference: verse.reference,
+      greek: verse.greek,
+      lineBreaks: verse.lineBreaks,
+      lineTranslations: verse.lineTranslations
+    });
+  }
+  function clearAllAnswers(verses) {
+    return verses.map(clearVerseAnswers);
+  }
+  function clearPracticePage(state2) {
+    return {
+      ...state2,
+      verses: [],
+      selected: { verseId: null, wordIndex: 0 },
+      selectedLessonId: "",
+      activeLessonId: "",
+      lessonName: "",
+      expandedStandardAnswers: {}
+    };
+  }
+  function loadLessons(storage = getLocalStorage()) {
+    try {
+      if (!storage) return [];
+      const raw = storage.getItem(LESSON_STORAGE_KEY);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed.filter(isLessonRecord2) : [];
+    } catch (e) {
+      return [];
+    }
+  }
+  function saveLessons(lessons, storage = getLocalStorage()) {
+    try {
+      if (storage) storage.setItem(LESSON_STORAGE_KEY, JSON.stringify(lessons));
+    } catch (e) {
+    }
+  }
+  function isLessonRecord2(lesson) {
+    return Boolean(
+      lesson && typeof lesson.id === "string" && typeof lesson.name === "string" && Array.isArray(lesson.items)
+    );
+  }
+  function getLocalStorage() {
+    try {
+      return globalThis.localStorage;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // src/lexicon.js
+  var cachedEntries = null;
+  async function lookupWord({ reference, wordIndex, word }) {
+    const entries = await loadLexiconEntries();
+    return lookupWordInEntries(entries, { reference, wordIndex, word });
+  }
+  function lookupWordInEntries(entries, { reference, wordIndex, word }) {
+    const entry = entries[`${reference}.${wordIndex}`];
+    if (!entry) {
+      return {
+        source: "none",
+        word,
+        lemma: "",
+        morphology: "",
+        strong: "",
+        normalized: ""
+      };
+    }
+    return {
+      source: "local",
+      word: entry.form,
+      lemma: entry.lemma,
+      morphology: formatMorphology(entry.morphology),
+      rawMorphology: entry.morphology,
+      strong: entry.strong,
+      normalized: entry.normalized
+    };
+  }
+  function formatMorphology(morphology) {
+    if (!morphology) return "";
+    const parts = morphology.split("-");
+    const partOfSpeech = parts[0];
+    if (partOfSpeech === "V" && parts[1]) {
+      return formatVerbMorphology(parts);
+    }
+    if (isNominalMorphology(partOfSpeech, parts[1])) {
+      return formatNominalMorphology(partOfSpeech, parts);
+    }
+    return morphology.replace(/-/g, "");
+  }
+  function formatVerbMorphology(parts) {
+    const verbalCode = parts[1];
+    const tense = verbalCode.slice(0, -2);
+    const voice = verbalCode.slice(-2, -1);
+    const mood = verbalCode.slice(-1);
+    const suffix = parts[2] || "";
+    if (!tense || !voice || !mood) {
+      return parts.join("");
+    }
+    if (mood === "P" && suffix.length >= 3) {
+      return `V${mood}${tense}${voice}${formatCaseGenderNumber(suffix)}`;
+    }
+    return `V${mood}${tense}${voice}${suffix}`;
+  }
+  function formatNominalMorphology(partOfSpeech, parts) {
+    const nominalCode = parts[1];
+    const suffix = parts.slice(2).join("");
+    return `${formatPartOfSpeech(partOfSpeech)}${formatCaseGenderNumber(nominalCode)}${suffix}`;
+  }
+  function formatCaseGenderNumber(code) {
+    if (code.length < 3) return code;
+    const [grammaticalCase, number, gender] = code;
+    return `${grammaticalCase}${gender}${number}${code.slice(3)}`;
+  }
+  function isNominalMorphology(partOfSpeech, code) {
+    return Boolean(code) && ["N", "T", "A"].includes(partOfSpeech) && code.length >= 3;
+  }
+  function formatPartOfSpeech(partOfSpeech) {
+    return partOfSpeech === "T" ? "D" : partOfSpeech;
+  }
+  async function loadLexiconEntries() {
+    if (!cachedEntries) {
+      const module = await import("./lexicon-data.js");
+      cachedEntries = module.LEXICON_ENTRIES;
+    }
+    return cachedEntries;
+  }
+  function makeExternalLookupUrl(word) {
+    return `https://logeion.uchicago.edu/${encodeURIComponent(word)}`;
+  }
+
   // src/nt.js
   var NT_BOOKS = [
     { id: "Matthew", short: "Matt", name: "Matthew", chapters: [25, 23, 17, 25, 48, 34, 29, 34, 38, 42, 30, 50, 58, 36, 39, 28, 27, 35, 30, 34, 46, 46, 39, 51, 46, 75, 66, 20] },
@@ -8420,8 +8509,8 @@
     const found = bookById(book);
     return `${found.short} ${chapter}:${verse}`;
   }
-  function getGreekText({ book, chapter, verse }) {
-    return VERSE_TEXTS[`${book}.${chapter}.${verse}`] || "";
+  function getGreekText({ book, chapter, verse }, verseTexts = VERSE_TEXTS) {
+    return verseTexts[`${book}.${chapter}.${verse}`] || "";
   }
   function bookById(bookId) {
     const found = NT_BOOKS.find((book) => book.id === bookId);
@@ -8556,6 +8645,8 @@
       translationMode: "verse",
       reflowMode: false,
       sidePanelCollapsed: false,
+      customGreekTextVersions: [],
+      selectedGreekTextVersionId: "tischendorf",
       lessonName: "",
       selectedLessonId: "",
       activeLessonId: "",
@@ -8695,7 +8786,7 @@
   }
 
   // src/text-source.js
-  var GREEK_TEXT_SOURCE = "\u5E0C\u81D8\u539F\u6587\uFF1ATischendorf Greek New Testament";
+  var GREEK_TEXT_SOURCE = greekTextSourceLabel(DEFAULT_GREEK_TEXT_VERSION);
 
   // src/zip-store.js
   var CRC_TABLE = makeCrcTable();
@@ -8792,6 +8883,7 @@
   var DOCX_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
   function createWorksheetDocxBlob({
     verses,
+    sourceLabel = GREEK_TEXT_SOURCE,
     translationMode = "verse",
     maxColumns = 6,
     standardAnswers = {},
@@ -8803,15 +8895,15 @@
       { name: "word/styles.xml", content: stylesXml() },
       {
         name: "word/document.xml",
-        content: documentXml({ verses, translationMode, maxColumns, standardAnswers, expandedStandardAnswers })
+        content: documentXml({ verses, sourceLabel, translationMode, maxColumns, standardAnswers, expandedStandardAnswers })
       }
     ];
     return new Blob([createZip(files)], { type: DOCX_TYPE });
   }
-  function documentXml({ verses, translationMode, maxColumns, standardAnswers, expandedStandardAnswers }) {
+  function documentXml({ verses, sourceLabel, translationMode, maxColumns, standardAnswers, expandedStandardAnswers }) {
     const body = [];
     body.push(headingParagraph("Koine Greek Parsing", "Title"));
-    body.push(paragraph(GREEK_TEXT_SOURCE, "Subtitle"));
+    body.push(paragraph(sourceLabel, "Subtitle"));
     if (!verses.length) {
       body.push(paragraph("\u5C1A\u672A\u52A0\u5165\u7D93\u6587"));
     } else {
@@ -8949,6 +9041,7 @@
   // src/text-export.js
   function formatWorksheetText({
     verses,
+    sourceLabel = GREEK_TEXT_SOURCE,
     translationMode = "verse",
     maxColumns = 6,
     standardAnswers = {},
@@ -8956,7 +9049,7 @@
   }) {
     const lines = [
       "Koine Greek Parsing",
-      GREEK_TEXT_SOURCE,
+      sourceLabel,
       ""
     ];
     if (!verses.length) {
@@ -9010,6 +9103,8 @@
   state.lessons = loadLessons();
   state.standardAnswers = loadStandardAnswers();
   state.practiceDrafts = loadPracticeDrafts();
+  state.customGreekTextVersions = loadCustomGreekTextVersions();
+  state.selectedGreekTextVersionId = loadSelectedGreekTextVersionId();
   state.lastKeyboardWordIndex = 0;
   var app = document.querySelector("#app");
   start();
@@ -9032,6 +9127,7 @@
   }
   function render() {
     applyPrintOrientation();
+    const sourceLabel = activeGreekTextSourceLabel();
     app.innerHTML = `
     <div class="shell ${state.printMode ? "is-print-mode" : ""} ${state.reflowMode ? "is-reflow-mode" : ""} ${state.sidePanelCollapsed ? "is-side-collapsed" : ""} is-${state.pageOrientation} density-${state.layoutDensity}">
       ${renderToolbar()}
@@ -9042,7 +9138,7 @@
               <div>
                 <p class="eyebrow">Koine Greek Parsing</p>
                 <h1>\u4E94\u884C\u5206\u6790\u7DF4\u7FD2</h1>
-                <p class="text-source">${escapeHtml(GREEK_TEXT_SOURCE)}</p>
+                <p class="text-source">${escapeHtml(sourceLabel)}</p>
               </div>
               <span>A4</span>
             </header>
@@ -9248,9 +9344,11 @@
   `;
   }
   function renderPagePanel() {
+    const greekTextPanel = renderGreekTextPanel();
     if (!state.verses.length) {
       return `
       <p class="panel-note">\u672C\u9801\u9084\u6C92\u6709\u7D93\u6587\u3002\u65B0\u589E\u7D93\u6587\u5F8C\uFF0C\u9019\u88E1\u6703\u5217\u51FA\u672C\u9801\u984C\u76EE\u3002</p>
+      ${greekTextPanel}
       ${renderLessonPanel()}
     `;
     }
@@ -9264,7 +9362,35 @@
       `).join("")}
     </ol>
     <button class="wide-button" data-action="clear-page">\u6E05\u7A7A\u672C\u9801\u7B54\u6848</button>
+    ${greekTextPanel}
     ${renderLessonPanel()}
+  `;
+  }
+  function renderGreekTextPanel() {
+    const versions = allGreekTextVersions(state.customGreekTextVersions);
+    const active = activeGreekTextVersion();
+    return `
+    <section class="tool-section greek-text-panel">
+      <div class="section-title">
+        <p class="label">\u5E0C\u81D8\u6587\u672C</p>
+        <small>${escapeHtml(active.name)}</small>
+      </div>
+      <label class="stacked-label">
+        \u4F7F\u7528\u7248\u672C
+        <select data-greek-text-version>
+          ${versions.map((version) => `
+            <option value="${escapeAttr(version.id)}" ${version.id === active.id ? "selected" : ""}>
+              ${escapeHtml(version.name)}
+            </option>
+          `).join("")}
+        </select>
+      </label>
+      <p class="panel-note compact">\u53EF\u532F\u5165\u4F60\u6709\u6B0A\u4F7F\u7528\u7684 NA28 / UBS5 JSON\uFF1B\u8CC7\u6599\u53EA\u5B58\u5728\u672C\u6A5F\u700F\u89BD\u5668\u3002</p>
+      <div class="button-row wrap">
+        <button data-action="import-greek-text">\u532F\u5165 NA28 / UBS5</button>
+      </div>
+      <input data-greek-text-import-file type="file" accept="application/json,.json" hidden>
+    </section>
   `;
   }
   function renderLessonPanel() {
@@ -9299,6 +9425,7 @@
         <div class="section-title">
           <p class="label">\u8CC7\u6599\u5099\u4EFD</p>
         </div>
+        <p class="privacy-note">\u6240\u6709\u8AB2\u7A0B\u3001\u8349\u7A3F\u3001\u6A19\u6E96\u7B54\u6848\u8207\u532F\u5165\u6587\u672C\u90FD\u53EA\u5B58\u5728\u672C\u6A5F\u700F\u89BD\u5668\uFF0C\u4E0D\u6703\u4E0A\u50B3\u5230\u4F3A\u670D\u5668\u3002</p>
         <div class="button-row wrap">
           <button data-action="export-data">\u532F\u51FA\u5B58\u6A94</button>
           <button data-action="import-data">\u532F\u5165\u5B58\u6A94</button>
@@ -9419,6 +9546,18 @@
     const importFileInput = app.querySelector("[data-import-file]");
     if (importFileInput) {
       importFileInput.addEventListener("change", handleImportFile);
+    }
+    const greekTextPicker = app.querySelector("[data-greek-text-version]");
+    if (greekTextPicker) {
+      greekTextPicker.addEventListener("change", (event) => {
+        state.selectedGreekTextVersionId = event.currentTarget.value;
+        saveSelectedGreekTextVersionId(state.selectedGreekTextVersionId);
+        render();
+      });
+    }
+    const greekTextImportFile = app.querySelector("[data-greek-text-import-file]");
+    if (greekTextImportFile) {
+      greekTextImportFile.addEventListener("change", handleGreekTextImportFile);
     }
     app.querySelectorAll("button[data-action]").forEach((button) => {
       button.addEventListener("click", handleAction);
@@ -9557,6 +9696,10 @@
       const input = app.querySelector("[data-import-file]");
       if (input) input.click();
     }
+    if (action === "import-greek-text") {
+      const input = app.querySelector("[data-greek-text-import-file]");
+      if (input) input.click();
+    }
   }
   function choicesFor(kind) {
     if (kind === "chapter") {
@@ -9565,9 +9708,10 @@
     return versesFor(state.picker.book, state.picker.chapter);
   }
   function addSelectedVerse() {
-    const greek = getGreekText(state.picker);
+    const version = activeGreekTextVersion();
+    const greek = getGreekText(state.picker, version.verses);
     if (!greek) {
-      window.alert("\u9019\u500B\u7BC0\u865F\u5728\u76EE\u524D\u532F\u5165\u7684 Tischendorf \u8CC7\u6599\u4E2D\u6C92\u6709\u7368\u7ACB\u5E0C\u81D8\u6587\u3002\u4F60\u4ECD\u53EF\u7528\u300C\u7DE8\u8F2F\u5E0C\u81D8\u6587\u300D\u624B\u52D5\u8CBC\u4E0A\u3002");
+      window.alert(`\u9019\u500B\u7BC0\u865F\u5728\u76EE\u524D\u9078\u7528\u7684 ${version.name} \u8CC7\u6599\u4E2D\u6C92\u6709\u7368\u7ACB\u5E0C\u81D8\u6587\u3002\u4F60\u4ECD\u53EF\u7528\u300C\u7DE8\u8F2F\u5E0C\u81D8\u6587\u300D\u624B\u52D5\u8CBC\u4E0A\u3002`);
       return;
     }
     const verse = createBlankExercise({
@@ -9699,6 +9843,7 @@
   function worksheetExportOptions() {
     return {
       verses: state.verses,
+      sourceLabel: activeGreekTextSourceLabel(),
       translationMode: state.translationMode,
       maxColumns: state.printMode ? maxPrintColumns(state.pageOrientation, state.layoutDensity) : maxEditColumns(state.layoutDensity),
       standardAnswers: state.standardAnswers,
@@ -9758,6 +9903,37 @@
     });
     reader.readAsText(file);
   }
+  function handleGreekTextImportFile(event) {
+    const [file] = event.currentTarget.files || [];
+    event.currentTarget.value = "";
+    if (!file) return;
+    const reader = new FileReader();
+    reader.addEventListener("load", () => {
+      try {
+        importGreekTextVersion(String(reader.result || ""));
+      } catch (error) {
+        window.alert(error && error.message ? error.message : "\u532F\u5165\u5E0C\u81D8\u6587\u672C\u5931\u6557\u3002");
+      }
+    });
+    reader.addEventListener("error", () => {
+      window.alert("\u7121\u6CD5\u8B80\u53D6\u9019\u500B\u5E0C\u81D8\u6587\u672C\u6A94\u6848\u3002");
+    });
+    reader.readAsText(file);
+  }
+  function importGreekTextVersion(text) {
+    const imported = parseImportedGreekTextVersion(text);
+    const confirmed = window.confirm(`\u532F\u5165\u300C${imported.name}\u300D\uFF1F
+\u5171\u6709 ${Object.keys(imported.verses).length} \u7BC0\u3002\u8ACB\u78BA\u8A8D\u4F60\u6709\u6B0A\u5728\u672C\u6A5F\u4F7F\u7528\u9019\u4EFD\u5E0C\u81D8\u6587\u672C\u3002`);
+    if (!confirmed) return;
+    state.customGreekTextVersions = [
+      ...state.customGreekTextVersions.filter((version) => version.id !== imported.id),
+      imported
+    ];
+    state.selectedGreekTextVersionId = imported.id;
+    saveCustomGreekTextVersions(state.customGreekTextVersions);
+    saveSelectedGreekTextVersionId(imported.id);
+    render();
+  }
   function importSavedData(text) {
     const imported = parseDataArchive(text);
     const confirmed = window.confirm(`${importSummary(imported)}
@@ -9775,6 +9951,15 @@
     savePracticeDrafts(state.practiceDrafts);
     saveStandardAnswers(state.standardAnswers);
     render();
+  }
+  function activeGreekTextVersion() {
+    return selectedGreekTextVersion({
+      versions: allGreekTextVersions(state.customGreekTextVersions),
+      selectedId: state.selectedGreekTextVersionId
+    });
+  }
+  function activeGreekTextSourceLabel() {
+    return greekTextSourceLabel(activeGreekTextVersion());
   }
   function applyPrintOrientation() {
     let style2 = document.querySelector("#print-orientation");

@@ -14,6 +14,16 @@ import {
 import { escapeHtml } from "./escape.js";
 import { preferredVerseIdForEditing } from "./focused-verse.js";
 import {
+  allGreekTextVersions,
+  greekTextSourceLabel,
+  loadCustomGreekTextVersions,
+  loadSelectedGreekTextVersionId,
+  parseImportedGreekTextVersion,
+  saveCustomGreekTextVersions,
+  saveSelectedGreekTextVersionId,
+  selectedGreekTextVersion
+} from "./greek-text-versions.js";
+import {
   clearAllAnswers,
   clearPracticePage,
   clearVerseAnswers,
@@ -42,7 +52,6 @@ import {
 } from "./standard-answers.js";
 import { createTagStore } from "./tags.js";
 import { nextArrowKey, nextHorizontalTabKey } from "./tab-order.js";
-import { GREEK_TEXT_SOURCE } from "./text-source.js";
 import { createWorksheetDocxBlob } from "./docx-export.js";
 import { formatWorksheetText } from "./text-export.js";
 import { createBlankExercise } from "./worksheet.js";
@@ -61,6 +70,8 @@ state.lexiconLookup = { key: "", status: "idle", result: null };
 state.lessons = loadLessons();
 state.standardAnswers = loadStandardAnswers();
 state.practiceDrafts = loadPracticeDrafts();
+state.customGreekTextVersions = loadCustomGreekTextVersions();
+state.selectedGreekTextVersionId = loadSelectedGreekTextVersionId();
 state.lastKeyboardWordIndex = 0;
 
 const app = document.querySelector("#app");
@@ -88,6 +99,7 @@ function showStartupError(error) {
 
 function render() {
   applyPrintOrientation();
+  const sourceLabel = activeGreekTextSourceLabel();
   app.innerHTML = `
     <div class="shell ${state.printMode ? "is-print-mode" : ""} ${state.reflowMode ? "is-reflow-mode" : ""} ${state.sidePanelCollapsed ? "is-side-collapsed" : ""} is-${state.pageOrientation} density-${state.layoutDensity}">
       ${renderToolbar()}
@@ -98,7 +110,7 @@ function render() {
               <div>
                 <p class="eyebrow">Koine Greek Parsing</p>
                 <h1>五行分析練習</h1>
-                <p class="text-source">${escapeHtml(GREEK_TEXT_SOURCE)}</p>
+                <p class="text-source">${escapeHtml(sourceLabel)}</p>
               </div>
               <span>A4</span>
             </header>
@@ -320,9 +332,11 @@ function renderDensityControl() {
 }
 
 function renderPagePanel() {
+  const greekTextPanel = renderGreekTextPanel();
   if (!state.verses.length) {
     return `
       <p class="panel-note">本頁還沒有經文。新增經文後，這裡會列出本頁題目。</p>
+      ${greekTextPanel}
       ${renderLessonPanel()}
     `;
   }
@@ -337,7 +351,36 @@ function renderPagePanel() {
       `).join("")}
     </ol>
     <button class="wide-button" data-action="clear-page">清空本頁答案</button>
+    ${greekTextPanel}
     ${renderLessonPanel()}
+  `;
+}
+
+function renderGreekTextPanel() {
+  const versions = allGreekTextVersions(state.customGreekTextVersions);
+  const active = activeGreekTextVersion();
+  return `
+    <section class="tool-section greek-text-panel">
+      <div class="section-title">
+        <p class="label">希臘文本</p>
+        <small>${escapeHtml(active.name)}</small>
+      </div>
+      <label class="stacked-label">
+        使用版本
+        <select data-greek-text-version>
+          ${versions.map((version) => `
+            <option value="${escapeAttr(version.id)}" ${version.id === active.id ? "selected" : ""}>
+              ${escapeHtml(version.name)}
+            </option>
+          `).join("")}
+        </select>
+      </label>
+      <p class="panel-note compact">可匯入你有權使用的 NA28 / UBS5 JSON；資料只存在本機瀏覽器。</p>
+      <div class="button-row wrap">
+        <button data-action="import-greek-text">匯入 NA28 / UBS5</button>
+      </div>
+      <input data-greek-text-import-file type="file" accept="application/json,.json" hidden>
+    </section>
   `;
 }
 
@@ -373,6 +416,7 @@ function renderLessonPanel() {
         <div class="section-title">
           <p class="label">資料備份</p>
         </div>
+        <p class="privacy-note">所有課程、草稿、標準答案與匯入文本都只存在本機瀏覽器，不會上傳到伺服器。</p>
         <div class="button-row wrap">
           <button data-action="export-data">匯出存檔</button>
           <button data-action="import-data">匯入存檔</button>
@@ -502,6 +546,20 @@ function bindEvents() {
   const importFileInput = app.querySelector("[data-import-file]");
   if (importFileInput) {
     importFileInput.addEventListener("change", handleImportFile);
+  }
+
+  const greekTextPicker = app.querySelector("[data-greek-text-version]");
+  if (greekTextPicker) {
+    greekTextPicker.addEventListener("change", (event) => {
+      state.selectedGreekTextVersionId = event.currentTarget.value;
+      saveSelectedGreekTextVersionId(state.selectedGreekTextVersionId);
+      render();
+    });
+  }
+
+  const greekTextImportFile = app.querySelector("[data-greek-text-import-file]");
+  if (greekTextImportFile) {
+    greekTextImportFile.addEventListener("change", handleGreekTextImportFile);
   }
 
   app.querySelectorAll("button[data-action]").forEach((button) => {
@@ -654,6 +712,10 @@ function handleAction(event) {
     const input = app.querySelector("[data-import-file]");
     if (input) input.click();
   }
+  if (action === "import-greek-text") {
+    const input = app.querySelector("[data-greek-text-import-file]");
+    if (input) input.click();
+  }
 }
 
 function choicesFor(kind) {
@@ -664,9 +726,10 @@ function choicesFor(kind) {
 }
 
 function addSelectedVerse() {
-  const greek = getGreekText(state.picker);
+  const version = activeGreekTextVersion();
+  const greek = getGreekText(state.picker, version.verses);
   if (!greek) {
-    window.alert("這個節號在目前匯入的 Tischendorf 資料中沒有獨立希臘文。你仍可用「編輯希臘文」手動貼上。");
+    window.alert(`這個節號在目前選用的 ${version.name} 資料中沒有獨立希臘文。你仍可用「編輯希臘文」手動貼上。`);
     return;
   }
   const verse = createBlankExercise({
@@ -816,6 +879,7 @@ function saveWorksheetDocx() {
 function worksheetExportOptions() {
   return {
     verses: state.verses,
+    sourceLabel: activeGreekTextSourceLabel(),
     translationMode: state.translationMode,
     maxColumns: state.printMode
       ? maxPrintColumns(state.pageOrientation, state.layoutDensity)
@@ -893,6 +957,38 @@ function handleImportFile(event) {
   reader.readAsText(file);
 }
 
+function handleGreekTextImportFile(event) {
+  const [file] = event.currentTarget.files || [];
+  event.currentTarget.value = "";
+  if (!file) return;
+  const reader = new FileReader();
+  reader.addEventListener("load", () => {
+    try {
+      importGreekTextVersion(String(reader.result || ""));
+    } catch (error) {
+      window.alert(error && error.message ? error.message : "匯入希臘文本失敗。");
+    }
+  });
+  reader.addEventListener("error", () => {
+    window.alert("無法讀取這個希臘文本檔案。");
+  });
+  reader.readAsText(file);
+}
+
+function importGreekTextVersion(text) {
+  const imported = parseImportedGreekTextVersion(text);
+  const confirmed = window.confirm(`匯入「${imported.name}」？\n共有 ${Object.keys(imported.verses).length} 節。請確認你有權在本機使用這份希臘文本。`);
+  if (!confirmed) return;
+  state.customGreekTextVersions = [
+    ...state.customGreekTextVersions.filter((version) => version.id !== imported.id),
+    imported
+  ];
+  state.selectedGreekTextVersionId = imported.id;
+  saveCustomGreekTextVersions(state.customGreekTextVersions);
+  saveSelectedGreekTextVersionId(imported.id);
+  render();
+}
+
 function importSavedData(text) {
   const imported = parseDataArchive(text);
   const confirmed = window.confirm(`${importSummary(imported)}\n同 ID 的課程、草稿與同經文標準答案會被匯入資料覆蓋。`);
@@ -910,6 +1006,17 @@ function importSavedData(text) {
   savePracticeDrafts(state.practiceDrafts);
   saveStandardAnswers(state.standardAnswers);
   render();
+}
+
+function activeGreekTextVersion() {
+  return selectedGreekTextVersion({
+    versions: allGreekTextVersions(state.customGreekTextVersions),
+    selectedId: state.selectedGreekTextVersionId
+  });
+}
+
+function activeGreekTextSourceLabel() {
+  return greekTextSourceLabel(activeGreekTextVersion());
 }
 
 function applyPrintOrientation() {

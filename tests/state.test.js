@@ -13,4 +13,6 @@ test("initial app state starts with no exercises and only the page panel visible
   assert.equal(state.translationMode, "verse");
   assert.equal(state.reflowMode, false);
   assert.equal(state.sidePanelCollapsed, false);
+  assert.deepEqual(state.customGreekTextVersions, []);
+  assert.equal(state.selectedGreekTextVersionId, "tischendorf");
 });

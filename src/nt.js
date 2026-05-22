@@ -50,12 +50,12 @@ export function referenceFor({ book, chapter, verse }) {
   return `${found.short} ${chapter}:${verse}`;
 }
 
-export function getGreekText({ book, chapter, verse }) {
-  return VERSE_TEXTS[`${book}.${chapter}.${verse}`] || "";
+export function getGreekText({ book, chapter, verse }, verseTexts = VERSE_TEXTS) {
+  return verseTexts[`${book}.${chapter}.${verse}`] || "";
 }
 
-export function hasGreekText(reference) {
-  return getGreekText(reference).length > 0;
+export function hasGreekText(reference, verseTexts = VERSE_TEXTS) {
+  return getGreekText(reference, verseTexts).length > 0;
 }
 
 function bookById(bookId) {

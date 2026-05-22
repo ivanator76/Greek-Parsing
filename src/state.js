@@ -11,6 +11,8 @@ export function createInitialState() {
     translationMode: "verse",
     reflowMode: false,
     sidePanelCollapsed: false,
+    customGreekTextVersions: [],
+    selectedGreekTextVersionId: "tischendorf",
     lessonName: "",
     selectedLessonId: "",
     activeLessonId: "",
