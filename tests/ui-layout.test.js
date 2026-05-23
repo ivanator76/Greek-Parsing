@@ -118,6 +118,8 @@ test("page panel exposes word color swatches for the selected word", () => {
 test("editing Greek text persists changes for the active lesson", () => {
   assert.match(appSource, /function persistActiveLessonGreekText\(\)/);
   assert.match(appSource, /if \(verse\) \{[\s\S]*persistActiveLessonGreekText\(\);[\s\S]*persistActiveDraft\(\);/);
+  assert.match(appSource, /createLessonRecord\(\{[\s\S]*id: activeLesson\.id,[\s\S]*name: activeLesson\.name,[\s\S]*verses: state\.verses,[\s\S]*createdAt: activeLesson\.createdAt/);
+  assert.doesNotMatch(appSource, /greekByReference/);
 });
 
 test("keyboard navigation does not intercept IME composition keys", () => {

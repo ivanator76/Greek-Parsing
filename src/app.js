@@ -1160,16 +1160,17 @@ function persistActiveDraft() {
 
 function persistActiveLessonGreekText() {
   if (!state.activeLessonId) return;
-  const lesson = state.lessons.find((item) => item.id === state.activeLessonId);
-  if (!lesson) return;
-  const greekByReference = Object.fromEntries(state.verses.map((verse) => [verse.reference, verse.greek]));
-  state.lessons = state.lessons.map((item) => item.id === state.activeLessonId ? {
-    ...item,
-    items: item.items.map((lessonItem) => ({
-      ...lessonItem,
-      greek: greekByReference[lessonItem.reference] || lessonItem.greek
-    }))
-  } : item);
+  const activeLesson = state.lessons.find((item) => item.id === state.activeLessonId);
+  if (!activeLesson) return;
+  const updatedLesson = createLessonRecord({
+    id: activeLesson.id,
+    name: activeLesson.name,
+    verses: state.verses,
+    createdAt: activeLesson.createdAt
+  });
+  state.lessons = state.lessons.map((item) => item.id === state.activeLessonId ? updatedLesson : item);
+  state.selectedLessonId = activeLesson.id;
+  state.lessonName = activeLesson.name;
   saveLessons(state.lessons);
 }
 
