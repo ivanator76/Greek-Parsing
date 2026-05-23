@@ -17,7 +17,8 @@ export function createPracticeDraft(lessonId, verses, updatedAt = new Date().toI
       layout[verse.reference] = {
         greek: verse.greek,
         lineBreaks: Array.isArray(verse.lineBreaks) ? [...verse.lineBreaks] : [],
-        lineTranslations: { ...(verse.lineTranslations || {}) }
+        lineTranslations: { ...(verse.lineTranslations || {}) },
+        wordColors: normalizeWordColors(verse.wordColors || {}, verse.words.length)
       };
       return layout;
     }, {})
@@ -41,7 +42,8 @@ export function applyPracticeDraft(verses, draft) {
       gloss: answer ? normalizeRow(answer.gloss, words.length) : normalizeRow(verse.gloss, words.length),
       translation: answer && answer.translation != null ? answer.translation : verse.translation,
       lineBreaks: layout ? normalizeLineBreaks(layout.lineBreaks, words.length) : verse.lineBreaks,
-      lineTranslations: layout ? normalizeLineTranslations(layout.lineTranslations, words.length) : verse.lineTranslations
+      lineTranslations: layout ? normalizeLineTranslations(layout.lineTranslations, words.length) : verse.lineTranslations,
+      wordColors: layout ? normalizeWordColors(layout.wordColors, words.length) : normalizeWordColors(verse.wordColors, words.length)
     };
   });
 }
@@ -99,6 +101,16 @@ function normalizeLineTranslations(lineTranslations = {}, length) {
   return Object.fromEntries(Object.entries(lineTranslations || {})
     .map(([start, value]) => [Number(start), value == null ? "" : String(value)])
     .filter(([start, value]) => Number.isInteger(start) && start >= 0 && start < length && value !== ""));
+}
+
+function normalizeWordColors(wordColors = {}, length) {
+  return Object.fromEntries(Object.entries(wordColors || {})
+    .map(([index, value]) => [Number(index), value == null ? "" : String(value)])
+    .filter(([index, value]) => Number.isInteger(index) && index >= 0 && index < length && isAllowedWordColor(value)));
+}
+
+function isAllowedWordColor(color) {
+  return color === "yellow" || color === "green" || color === "blue" || color === "red";
 }
 
 function getLocalStorage() {

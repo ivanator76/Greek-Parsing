@@ -419,6 +419,22 @@ h1 {
   outline: 2px solid var(--accent);
 }
 
+.word-column.word-color-yellow {
+  background: #fff3a3;
+}
+
+.word-column.word-color-green {
+  background: #bbf7d0;
+}
+
+.word-column.word-color-blue {
+  background: #bfdbfe;
+}
+
+.word-column.word-color-red {
+  background: #fecaca;
+}
+
 .word-column input {
   border: 1px solid #dbe1e7;
   border-radius: 5px;
@@ -760,6 +776,45 @@ dd {
 
 .lesson-panel small {
   color: var(--muted);
+}
+
+.color-swatch-row {
+  display: flex;
+  gap: 8px;
+}
+
+.color-swatch {
+  border: 2px solid #cfd8e2;
+  border-radius: 999px;
+  height: 28px;
+  min-height: 28px;
+  padding: 0;
+  width: 28px;
+}
+
+.color-swatch.active {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 2px rgba(46, 95, 130, 0.18);
+}
+
+.color-swatch.is-none {
+  background: linear-gradient(135deg, transparent 45%, #b42318 46%, #b42318 54%, transparent 55%), #fff;
+}
+
+.color-swatch.is-yellow {
+  background: #fff3a3;
+}
+
+.color-swatch.is-green {
+  background: #bbf7d0;
+}
+
+.color-swatch.is-blue {
+  background: #bfdbfe;
+}
+
+.color-swatch.is-red {
+  background: #fecaca;
 }
 
 .lookup-link {

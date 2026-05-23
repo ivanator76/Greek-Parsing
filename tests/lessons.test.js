@@ -22,7 +22,8 @@ function filledVerse() {
     gloss: ["照著", "說", "這", "靈"],
     translation: "聖靈如此說",
     lineBreaks: [1],
-    lineTranslations: { 0: "照著他說" }
+    lineTranslations: { 0: "照著他說" },
+    wordColors: { 1: "blue" }
   };
 }
 
@@ -74,6 +75,7 @@ test("clearVerseAnswers clears student rows while keeping Greek text", () => {
   assert.equal(cleared.translation, "");
   assert.deepEqual(cleared.lineBreaks, [1]);
   assert.deepEqual(cleared.lineTranslations, { 0: "照著他說" });
+  assert.deepEqual(cleared.wordColors, { 1: "blue" });
 });
 
 test("clearAllAnswers clears every verse on the current page", () => {

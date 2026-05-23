@@ -31,7 +31,8 @@ function verse(reference = "Heb 3:7") {
     gloss: ["照著", "說", "這", "靈"],
     translation: "聖靈如此說",
     lineBreaks: [1],
-    lineTranslations: { 0: "照著他說", 2: "這靈" }
+    lineTranslations: { 0: "照著他說", 2: "這靈" },
+    wordColors: { 1: "yellow", 3: "red" }
   };
 }
 
@@ -44,6 +45,7 @@ test("createPracticeDraft stores answer rows and manual line breaks by verse ref
   assert.equal(draft.layout["Heb 3:7"].greek, "Καθως λεγει το πνευμα");
   assert.deepEqual(draft.layout["Heb 3:7"].lineBreaks, [1]);
   assert.deepEqual(draft.layout["Heb 3:7"].lineTranslations, { 0: "照著他說", 2: "這靈" });
+  assert.deepEqual(draft.layout["Heb 3:7"].wordColors, { 1: "yellow", 3: "red" });
 });
 
 test("applyPracticeDraft restores saved answers and manual line breaks onto freshly loaded lesson verses", () => {
@@ -60,6 +62,7 @@ test("applyPracticeDraft restores saved answers and manual line breaks onto fres
   assert.equal(restored.translation, "聖靈如此說");
   assert.deepEqual(restored.lineBreaks, [1]);
   assert.deepEqual(restored.lineTranslations, { 0: "照著他說", 2: "這靈" });
+  assert.deepEqual(restored.wordColors, { 1: "yellow", 3: "red" });
 });
 
 test("applyPracticeDraft restores edited Greek text onto freshly loaded lesson verses", () => {

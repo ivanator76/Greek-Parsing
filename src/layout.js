@@ -14,7 +14,8 @@ export function createVerse({
   gloss = [],
   translation = "",
   lineBreaks = [],
-  lineTranslations = {}
+  lineTranslations = {},
+  wordColors = {}
 }) {
   const words = splitWords(greek);
   return {
@@ -27,7 +28,8 @@ export function createVerse({
     gloss: normalizeRow(gloss, words.length),
     translation,
     lineBreaks: normalizeLineBreaks(lineBreaks, words.length),
-    lineTranslations: normalizeLineTranslations(lineTranslations, words.length)
+    lineTranslations: normalizeLineTranslations(lineTranslations, words.length),
+    wordColors: normalizeWordColors(wordColors, words.length)
   };
 }
 
@@ -45,6 +47,7 @@ export function wrapVerse(verse, { maxColumns = 8 } = {}) {
       syntax: verse.syntax.slice(start, end),
       morphology: verse.morphology.slice(start, end),
       gloss: verse.gloss.slice(start, end),
+      wordColors: wordColorsFor(verse, start, end),
       showTranslation: false,
       translation: "",
       lineTranslation: lineTranslationFor(verse, start)
@@ -68,7 +71,8 @@ export function updateVerseGreek(verse, greek) {
     morphology: verse.morphology,
     gloss: verse.gloss,
     lineBreaks: [],
-    lineTranslations: {}
+    lineTranslations: {},
+    wordColors: {}
   });
 }
 
@@ -101,6 +105,20 @@ export function toggleLineBreakAfter(verse, index) {
   };
 }
 
+export function updateVerseWordColor(verse, index, color) {
+  if (!Number.isInteger(index) || index < 0 || index >= verse.words.length) return verse;
+  const nextColors = { ...(verse.wordColors || {}) };
+  if (isAllowedWordColor(color)) {
+    nextColors[index] = color;
+  } else {
+    delete nextColors[index];
+  }
+  return {
+    ...verse,
+    wordColors: normalizeWordColors(nextColors, verse.words.length)
+  };
+}
+
 function wrapVerseAtBreaks(verse) {
   const segments = [];
   let start = 0;
@@ -122,6 +140,7 @@ function createSegment(verse, start, end) {
     syntax: verse.syntax.slice(start, end),
     morphology: verse.morphology.slice(start, end),
     gloss: verse.gloss.slice(start, end),
+    wordColors: wordColorsFor(verse, start, end),
     showTranslation: false,
     translation: "",
     lineTranslation: lineTranslationFor(verse, start)
@@ -151,6 +170,23 @@ function normalizeLineTranslations(lineTranslations, length) {
   return Object.fromEntries(Object.entries(lineTranslations || {})
     .map(([start, value]) => [Number(start), value == null ? "" : String(value)])
     .filter(([start, value]) => Number.isInteger(start) && start >= 0 && start < length && value !== ""));
+}
+
+function normalizeWordColors(wordColors = {}, length) {
+  return Object.fromEntries(Object.entries(wordColors || {})
+    .map(([index, value]) => [Number(index), value == null ? "" : String(value)])
+    .filter(([index, value]) => Number.isInteger(index) && index >= 0 && index < length && isAllowedWordColor(value)));
+}
+
+function wordColorsFor(verse, start, end) {
+  return Array.from({ length: end - start }, (_, offset) => {
+    const color = verse.wordColors && verse.wordColors[start + offset];
+    return isAllowedWordColor(color) ? color : "";
+  });
+}
+
+function isAllowedWordColor(color) {
+  return color === "yellow" || color === "green" || color === "blue" || color === "red";
 }
 
 function lineTranslationFor(verse, start) {

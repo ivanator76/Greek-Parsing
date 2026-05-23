@@ -101,6 +101,20 @@ test("page panel exposes a Greek text import control for user-owned NA28 or UBS5
   assert.match(greekTextPanel, /data-greek-text-import-file/);
 });
 
+test("page panel exposes word color swatches for the selected word", () => {
+  const pagePanel = functionBody("renderWordColorPanel");
+  const segment = functionBody("renderSegment");
+
+  assert.match(pagePanel, /標注顏色/);
+  assert.match(pagePanel, /data-action="set-word-color"/);
+  assert.match(appSource, /WORD_COLOR_OPTIONS[\s\S]*id: "yellow"[\s\S]*id: "green"[\s\S]*id: "blue"[\s\S]*id: "red"/);
+  assert.match(appSource, /WORD_COLOR_OPTIONS[\s\S]*id: "", label: "無色"/);
+  assert.match(pagePanel, /data-word-color="\$\{escapeAttr\(color\.id\)\}"/);
+  assert.match(segment, /word-color-\$\{wordColor\}/);
+  assert.match(cssSource, /\.color-swatch\.is-yellow/);
+  assert.match(cssSource, /\.word-column\.word-color-red/);
+});
+
 test("editing Greek text persists changes for the active lesson", () => {
   assert.match(appSource, /function persistActiveLessonGreekText\(\)/);
   assert.match(appSource, /if \(verse\) \{[\s\S]*persistActiveLessonGreekText\(\);[\s\S]*persistActiveDraft\(\);/);

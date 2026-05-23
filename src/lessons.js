@@ -32,7 +32,8 @@ export function clearVerseAnswers(verse) {
     reference: verse.reference,
     greek: verse.greek,
     lineBreaks: verse.lineBreaks,
-    lineTranslations: verse.lineTranslations
+    lineTranslations: verse.lineTranslations,
+    wordColors: verse.wordColors
   });
 }
 

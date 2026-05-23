@@ -3,6 +3,7 @@ import {
   updateVerseCell,
   updateVerseGreek,
   updateVerseLineTranslation,
+  updateVerseWordColor,
   wrapVerse
 } from "./layout.js";
 import {
@@ -64,6 +65,13 @@ const DENSITY_LABELS = {
   standard: "標準",
   compact: "緊密"
 };
+const WORD_COLOR_OPTIONS = [
+  { id: "", label: "無色" },
+  { id: "yellow", label: "黃色" },
+  { id: "green", label: "綠色" },
+  { id: "blue", label: "藍色" },
+  { id: "red", label: "紅色" }
+];
 const tagStore = createTagStore(DEFAULT_TAGS);
 const state = createInitialState();
 state.lexiconLookup = { key: "", status: "idle", result: null };
@@ -263,8 +271,9 @@ function renderSegment(verse, segment) {
     const index = segment.start + offset;
     const selected = state.selected.verseId === verse.id && state.selected.wordIndex === index;
     const hasManualBreak = (verse.lineBreaks || []).includes(index);
+    const wordColor = segment.wordColors ? segment.wordColors[offset] || "" : "";
     return `
-      <div class="word-column ${selected ? "selected" : ""}" style="--chars:${columnSize(word, verse, index)}" data-word-index="${index}" data-verse-id="${verse.id}">
+      <div class="word-column ${selected ? "selected" : ""} ${wordColor ? `word-color-${wordColor}` : ""}" style="--chars:${columnSize(word, verse, index)}" data-word-index="${index}" data-verse-id="${verse.id}">
         <input class="syntax-input" value="${escapeAttr(segment.syntax[offset])}" data-row="syntax" data-index="${index}" data-verse-id="${verse.id}" data-tab-key="${escapeAttr(tabKey(verse.id, "syntax", index))}" aria-label="syntax for ${word}">
         <button class="greek-word" data-action="select-word" data-index="${index}" data-verse-id="${verse.id}">${escapeHtml(word)}</button>
         <input value="${escapeAttr(segment.morphology[offset])}" data-row="morphology" data-index="${index}" data-verse-id="${verse.id}" data-tab-key="${escapeAttr(tabKey(verse.id, "morphology", index))}" aria-label="morphology for ${word}">
@@ -350,6 +359,7 @@ function renderPagePanel() {
   }
 
   return `
+    ${renderWordColorPanel()}
     <ol class="page-list">
       ${state.verses.map((verse, index) => `
         <li>
@@ -361,6 +371,41 @@ function renderPagePanel() {
     <button class="wide-button" data-action="clear-page">清空本頁答案</button>
     ${greekTextPanel}
     ${renderLessonPanel()}
+  `;
+}
+
+function renderWordColorPanel() {
+  const selectedVerse = state.verses.find((verse) => verse.id === state.selected.verseId);
+  const selectedWord = selectedVerse && selectedVerse.words[state.selected.wordIndex];
+  if (!selectedVerse || selectedWord == null) {
+    return `
+      <section class="tool-section word-color-panel">
+        <div class="section-title">
+          <p class="label">標注顏色</p>
+          <small>先選取一個希臘字</small>
+        </div>
+      </section>
+    `;
+  }
+  const activeColor = selectedVerse.wordColors ? selectedVerse.wordColors[state.selected.wordIndex] || "" : "";
+  return `
+    <section class="tool-section word-color-panel">
+      <div class="section-title">
+        <p class="label">標注顏色</p>
+        <small>${escapeHtml(selectedWord)}</small>
+      </div>
+      <div class="color-swatch-row" role="group" aria-label="標注顏色">
+        ${WORD_COLOR_OPTIONS.map((color) => `
+          <button
+            class="color-swatch is-${color.id || "none"} ${activeColor === color.id ? "active" : ""}"
+            data-action="set-word-color"
+            data-word-color="${escapeAttr(color.id)}"
+            aria-label="${color.label}"
+            title="${color.label}"
+          ></button>
+        `).join("")}
+      </div>
+    </section>
   `;
 }
 
@@ -705,6 +750,7 @@ function handleAction(event) {
   if (action === "save-standard-answer") saveVerseAsStandardAnswer(button.dataset.verseId);
   if (action === "toggle-standard-answer") toggleStandardAnswer(button.dataset.reference);
   if (action === "select-word") selectWord(button.dataset.verseId, Number(button.dataset.index));
+  if (action === "set-word-color") setSelectedWordColor(button.dataset.wordColor || "");
   if (action === "toggle-line-break") toggleManualLineBreak(button.dataset.verseId, Number(button.dataset.index));
   if (action === "toggle-study-tools") {
     state.showStudyTools = !state.showStudyTools;
@@ -869,6 +915,14 @@ function fillLocalMorphology(morphology) {
   renderPreservingSidePanelScroll();
 }
 
+function setSelectedWordColor(color) {
+  const { verseId, wordIndex } = state.selected;
+  if (!verseId) return;
+  updateVerse(verseId, (verse) => updateVerseWordColor(verse, wordIndex, color));
+  persistActiveDraft();
+  renderPreservingSidePanelScroll();
+}
+
 function updateVerse(verseId, updater) {
   state.verses = state.verses.map((verse) => verse.id === verseId ? updater(verse) : verse);
 }
@@ -895,8 +949,10 @@ function saveWorksheetDocx() {
 function worksheetExportOptions() {
   return {
     verses: state.verses,
+    lessonName: normalizeLessonName(state.lessonName),
     sourceLabel: activeGreekTextSourceLabel(),
     translationMode: state.translationMode,
+    pageOrientation: state.pageOrientation,
     maxColumns: state.printMode
       ? maxPrintColumns(state.pageOrientation, state.layoutDensity)
       : maxEditColumns(state.layoutDensity),

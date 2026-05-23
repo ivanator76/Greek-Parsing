@@ -41,7 +41,8 @@
     gloss = [],
     translation = "",
     lineBreaks = [],
-    lineTranslations = {}
+    lineTranslations = {},
+    wordColors = {}
   }) {
     const words = splitWords(greek);
     return {
@@ -54,7 +55,8 @@
       gloss: normalizeRow(gloss, words.length),
       translation,
       lineBreaks: normalizeLineBreaks(lineBreaks, words.length),
-      lineTranslations: normalizeLineTranslations(lineTranslations, words.length)
+      lineTranslations: normalizeLineTranslations(lineTranslations, words.length),
+      wordColors: normalizeWordColors(wordColors, words.length)
     };
   }
   function wrapVerse(verse, { maxColumns = 8 } = {}) {
@@ -70,6 +72,7 @@
         syntax: verse.syntax.slice(start2, end),
         morphology: verse.morphology.slice(start2, end),
         gloss: verse.gloss.slice(start2, end),
+        wordColors: wordColorsFor(verse, start2, end),
         showTranslation: false,
         translation: "",
         lineTranslation: lineTranslationFor(verse, start2)
@@ -90,7 +93,8 @@
       morphology: verse.morphology,
       gloss: verse.gloss,
       lineBreaks: [],
-      lineTranslations: {}
+      lineTranslations: {},
+      wordColors: {}
     });
   }
   function updateVerseCell(verse, row, index, value) {
@@ -119,6 +123,19 @@
       lineBreaks: normalizeLineBreaks([...lineBreaks], verse.words.length)
     };
   }
+  function updateVerseWordColor(verse, index, color) {
+    if (!Number.isInteger(index) || index < 0 || index >= verse.words.length) return verse;
+    const nextColors = { ...verse.wordColors || {} };
+    if (isAllowedWordColor(color)) {
+      nextColors[index] = color;
+    } else {
+      delete nextColors[index];
+    }
+    return {
+      ...verse,
+      wordColors: normalizeWordColors(nextColors, verse.words.length)
+    };
+  }
   function wrapVerseAtBreaks(verse) {
     const segments = [];
     let start2 = 0;
@@ -139,6 +156,7 @@
       syntax: verse.syntax.slice(start2, end),
       morphology: verse.morphology.slice(start2, end),
       gloss: verse.gloss.slice(start2, end),
+      wordColors: wordColorsFor(verse, start2, end),
       showTranslation: false,
       translation: "",
       lineTranslation: lineTranslationFor(verse, start2)
@@ -159,6 +177,18 @@
   }
   function normalizeLineTranslations(lineTranslations, length) {
     return Object.fromEntries(Object.entries(lineTranslations || {}).map(([start2, value]) => [Number(start2), value == null ? "" : String(value)]).filter(([start2, value]) => Number.isInteger(start2) && start2 >= 0 && start2 < length && value !== ""));
+  }
+  function normalizeWordColors(wordColors = {}, length) {
+    return Object.fromEntries(Object.entries(wordColors || {}).map(([index, value]) => [Number(index), value == null ? "" : String(value)]).filter(([index, value]) => Number.isInteger(index) && index >= 0 && index < length && isAllowedWordColor(value)));
+  }
+  function wordColorsFor(verse, start2, end) {
+    return Array.from({ length: end - start2 }, (_, offset) => {
+      const color = verse.wordColors && verse.wordColors[start2 + offset];
+      return isAllowedWordColor(color) ? color : "";
+    });
+  }
+  function isAllowedWordColor(color) {
+    return color === "yellow" || color === "green" || color === "blue" || color === "red";
   }
   function lineTranslationFor(verse, start2) {
     return verse.lineTranslations && verse.lineTranslations[start2] ? verse.lineTranslations[start2] : "";
@@ -16244,7 +16274,7 @@
   }
 
   // src/worksheet.js
-  function createBlankExercise({ id, reference, greek, lineBreaks = [], lineTranslations = {} }) {
+  function createBlankExercise({ id, reference, greek, lineBreaks = [], lineTranslations = {}, wordColors = {} }) {
     return createVerse({
       id,
       reference,
@@ -16254,7 +16284,8 @@
       gloss: [],
       translation: "",
       lineBreaks,
-      lineTranslations
+      lineTranslations,
+      wordColors
     });
   }
 
@@ -16287,7 +16318,8 @@
       reference: verse.reference,
       greek: verse.greek,
       lineBreaks: verse.lineBreaks,
-      lineTranslations: verse.lineTranslations
+      lineTranslations: verse.lineTranslations,
+      wordColors: verse.wordColors
     });
   }
   function clearAllAnswers(verses) {
@@ -16487,7 +16519,8 @@
         layout[verse.reference] = {
           greek: verse.greek,
           lineBreaks: Array.isArray(verse.lineBreaks) ? [...verse.lineBreaks] : [],
-          lineTranslations: { ...verse.lineTranslations || {} }
+          lineTranslations: { ...verse.lineTranslations || {} },
+          wordColors: normalizeWordColors2(verse.wordColors || {}, verse.words.length)
         };
         return layout;
       }, {})
@@ -16510,7 +16543,8 @@
         gloss: answer ? normalizeRow2(answer.gloss, words.length) : normalizeRow2(verse.gloss, words.length),
         translation: answer && answer.translation != null ? answer.translation : verse.translation,
         lineBreaks: layout ? normalizeLineBreaks2(layout.lineBreaks, words.length) : verse.lineBreaks,
-        lineTranslations: layout ? normalizeLineTranslations2(layout.lineTranslations, words.length) : verse.lineTranslations
+        lineTranslations: layout ? normalizeLineTranslations2(layout.lineTranslations, words.length) : verse.lineTranslations,
+        wordColors: layout ? normalizeWordColors2(layout.wordColors, words.length) : normalizeWordColors2(verse.wordColors, words.length)
       };
     });
   }
@@ -16554,6 +16588,12 @@
   }
   function normalizeLineTranslations2(lineTranslations = {}, length) {
     return Object.fromEntries(Object.entries(lineTranslations || {}).map(([start2, value]) => [Number(start2), value == null ? "" : String(value)]).filter(([start2, value]) => Number.isInteger(start2) && start2 >= 0 && start2 < length && value !== ""));
+  }
+  function normalizeWordColors2(wordColors = {}, length) {
+    return Object.fromEntries(Object.entries(wordColors || {}).map(([index, value]) => [Number(index), value == null ? "" : String(value)]).filter(([index, value]) => Number.isInteger(index) && index >= 0 && index < length && isAllowedWordColor2(value)));
+  }
+  function isAllowedWordColor2(color) {
+    return color === "yellow" || color === "green" || color === "blue" || color === "red";
   }
   function getLocalStorage2() {
     try {
@@ -16839,26 +16879,41 @@
 
   // src/docx-export.js
   var DOCX_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+  var PAGE_MARGIN_TWIPS = 1440;
+  var A4_PORTRAIT = { width: 11906, height: 16838 };
+  var A4_LANDSCAPE = { width: 16838, height: 11906 };
+  var WORD_COLOR_FILLS = {
+    yellow: "FFF3A3",
+    green: "BBF7D0",
+    blue: "BFDBFE",
+    red: "FECACA"
+  };
   function createWorksheetDocxBlob({
     verses,
+    lessonName = "",
     sourceLabel = GREEK_TEXT_SOURCE,
     translationMode = "verse",
+    pageOrientation = "landscape",
     maxColumns = 6,
     standardAnswers = {},
     expandedStandardAnswers = {}
   }) {
+    const page = pageSetup(pageOrientation);
     const files = [
       { name: "[Content_Types].xml", content: contentTypesXml() },
       { name: "_rels/.rels", content: packageRelsXml() },
+      { name: "word/_rels/document.xml.rels", content: documentRelsXml() },
       { name: "word/styles.xml", content: stylesXml() },
+      { name: "word/header1.xml", content: headerXml(lessonName) },
+      { name: "word/footer1.xml", content: footerXml() },
       {
         name: "word/document.xml",
-        content: documentXml({ verses, sourceLabel, translationMode, maxColumns, standardAnswers, expandedStandardAnswers })
+        content: documentXml({ verses, sourceLabel, translationMode, maxColumns, standardAnswers, expandedStandardAnswers, page })
       }
     ];
     return new Blob([createZip(files)], { type: DOCX_TYPE });
   }
-  function documentXml({ verses, sourceLabel, translationMode, maxColumns, standardAnswers, expandedStandardAnswers }) {
+  function documentXml({ verses, sourceLabel, translationMode, maxColumns, standardAnswers, expandedStandardAnswers, page }) {
     const body = [];
     body.push(headingParagraph("Koine Greek Parsing", "Title"));
     body.push(paragraph(sourceLabel, "Subtitle"));
@@ -16868,7 +16923,7 @@
       verses.forEach((verse) => {
         body.push(headingParagraph(verse.reference, "Heading1"));
         wrapVerse(verse, { maxColumns }).forEach((segment) => {
-          body.push(segmentParagraphs(segment, translationMode));
+          body.push(segmentParagraphs(segment, translationMode, page.contentWidth));
         });
         const answer = standardAnswers[verse.reference];
         if (answer && expandedStandardAnswers[verse.reference]) {
@@ -16880,10 +16935,10 @@
         }
       });
     }
-    body.push(sectionProperties());
+    body.push(sectionProperties(page));
     return xmlDocument(body.join(""));
   }
-  function segmentParagraphs(segment, translationMode) {
+  function segmentParagraphs(segment, translationMode, contentWidth) {
     const rows = [
       ["1", ...segment.syntax],
       ["2", ...segment.words],
@@ -16896,7 +16951,8 @@
       rows.push(["5", `\u6574\u53E5\u7FFB\u8B6F ${segment.translation || ""}`, ...Array(segment.words.length - 1).fill("")]);
     }
     const columnCount = Math.max(segment.words.length, 1);
-    return `${rows.map((row) => rowParagraph(row, columnCount, row[0] === "2" ? "GreekRow" : "CellText")).join("")}${paragraph("")}`;
+    const wordColors = ["", ...segment.wordColors || []];
+    return `${rows.map((row) => rowParagraph(row, columnCount, row[0] === "2" ? "GreekRow" : "CellText", contentWidth, row[0] === "5" ? [] : wordColors)).join("")}${paragraph("")}`;
   }
   function answerParagraph(label, values) {
     const text = values.map((value) => value || "").join(" | ");
@@ -16914,8 +16970,8 @@
     </w:p>
   `;
   }
-  function rowParagraph(values, columnCount, style2) {
-    const tabs = tabStops(columnCount);
+  function rowParagraph(values, columnCount, style2, contentWidth, wordColors = []) {
+    const tabs = tabStops(columnCount, contentWidth);
     return `
     <w:p>
       <w:pPr>
@@ -16923,32 +16979,48 @@
         <w:tabs>${tabs.map((position) => `<w:tab w:val="left" w:pos="${position}"/>`).join("")}</w:tabs>
         <w:spacing w:after="80"/>
       </w:pPr>
-      ${tabbedRuns(values)}
+      ${tabbedRuns(values, wordColors)}
     </w:p>
   `;
   }
-  function tabStops(columnCount) {
+  function tabStops(columnCount, contentWidth) {
     const labelWidth = 540;
-    const cellWidth = Math.floor((9360 - labelWidth) / columnCount);
+    const cellWidth = Math.floor((contentWidth - labelWidth) / columnCount);
     return Array.from({ length: columnCount }, (_, index) => labelWidth + cellWidth * index);
   }
-  function tabbedRuns(values) {
+  function tabbedRuns(values, wordColors = []) {
     return values.map((value, index) => {
       const tab = index === 0 ? "" : "<w:r><w:tab/></w:r>";
-      return `${tab}<w:r><w:t xml:space="preserve">${escapeXml(value || "")}</w:t></w:r>`;
+      return `${tab}<w:r>${runProperties(wordColors[index])}<w:t xml:space="preserve">${escapeXml(value || "")}</w:t></w:r>`;
     }).join("");
   }
-  function sectionProperties() {
+  function runProperties(color) {
+    const fill = WORD_COLOR_FILLS[color];
+    return fill ? `<w:rPr><w:shd w:fill="${fill}"/></w:rPr>` : "";
+  }
+  function sectionProperties(page) {
+    const orientation = page.orientation === "landscape" ? ' w:orient="landscape"' : "";
     return `
     <w:sectPr>
-      <w:pgSz w:w="12240" w:h="15840"/>
-      <w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440" w:header="720" w:footer="720" w:gutter="0"/>
+      <w:headerReference w:type="default" r:id="rIdHeader1"/>
+      <w:footerReference w:type="default" r:id="rIdFooter1"/>
+      <w:pgSz w:w="${page.width}" w:h="${page.height}"${orientation}/>
+      <w:pgMar w:top="${PAGE_MARGIN_TWIPS}" w:right="${PAGE_MARGIN_TWIPS}" w:bottom="${PAGE_MARGIN_TWIPS}" w:left="${PAGE_MARGIN_TWIPS}" w:header="720" w:footer="720" w:gutter="0"/>
     </w:sectPr>
   `;
   }
+  function pageSetup(pageOrientation) {
+    const orientation = pageOrientation === "portrait" ? "portrait" : "landscape";
+    const size = orientation === "portrait" ? A4_PORTRAIT : A4_LANDSCAPE;
+    return {
+      ...size,
+      orientation,
+      contentWidth: size.width - PAGE_MARGIN_TWIPS * 2
+    };
+  }
   function xmlDocument(body) {
     return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
   <w:body>${body}</w:body>
 </w:document>`;
   }
@@ -16959,6 +17031,8 @@
   <Default Extension="xml" ContentType="application/xml"/>
   <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
   <Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>
+  <Override PartName="/word/header1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"/>
+  <Override PartName="/word/footer1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"/>
 </Types>`;
   }
   function packageRelsXml() {
@@ -16966,6 +17040,45 @@
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
   <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
 </Relationships>`;
+  }
+  function documentRelsXml() {
+    return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rIdHeader1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/header" Target="header1.xml"/>
+  <Relationship Id="rIdFooter1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer" Target="footer1.xml"/>
+</Relationships>`;
+  }
+  function headerXml(lessonName) {
+    const label = lessonName ? `\u8AB2\u7A0B\u7D44\uFF1A${lessonName}` : "";
+    return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:hdr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  ${paragraph(label, "HeaderText")}
+</w:hdr>`;
+  }
+  function footerXml() {
+    return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:ftr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:p>
+    <w:pPr>
+      <w:pStyle w:val="FooterText"/>
+      <w:jc w:val="right"/>
+    </w:pPr>
+    <w:r><w:t xml:space="preserve">\u7B2C </w:t></w:r>
+    ${fieldRun("PAGE")}
+    <w:r><w:t xml:space="preserve"> / </w:t></w:r>
+    ${fieldRun("NUMPAGES")}
+    <w:r><w:t xml:space="preserve"> \u9801</w:t></w:r>
+  </w:p>
+</w:ftr>`;
+  }
+  function fieldRun(instruction) {
+    return `
+    <w:r><w:fldChar w:fldCharType="begin"/></w:r>
+    <w:r><w:instrText xml:space="preserve">${instruction}</w:instrText></w:r>
+    <w:r><w:fldChar w:fldCharType="separate"/></w:r>
+    <w:r><w:t>1</w:t></w:r>
+    <w:r><w:fldChar w:fldCharType="end"/></w:r>
+  `;
   }
   function stylesXml() {
     return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -16977,6 +17090,8 @@
   ${style("Heading2", "paragraph", "heading 2", 22, "Arial", true)}
   ${style("CellText", "paragraph", "Cell Text", 20, "Arial")}
   ${style("GreekRow", "paragraph", "Greek Row", 28, "Times New Roman")}
+  ${style("HeaderText", "paragraph", "Header Text", 18, "Arial")}
+  ${style("FooterText", "paragraph", "Footer Text", 18, "Arial")}
 </w:styles>`;
   }
   function style(id, type, name, size, font, bold = false) {
@@ -17055,6 +17170,13 @@
     standard: "\u6A19\u6E96",
     compact: "\u7DCA\u5BC6"
   };
+  var WORD_COLOR_OPTIONS = [
+    { id: "", label: "\u7121\u8272" },
+    { id: "yellow", label: "\u9EC3\u8272" },
+    { id: "green", label: "\u7DA0\u8272" },
+    { id: "blue", label: "\u85CD\u8272" },
+    { id: "red", label: "\u7D05\u8272" }
+  ];
   var tagStore = createTagStore(DEFAULT_TAGS);
   var state = createInitialState();
   state.lexiconLookup = { key: "", status: "idle", result: null };
@@ -17237,8 +17359,9 @@
       const index = segment.start + offset;
       const selected = state.selected.verseId === verse.id && state.selected.wordIndex === index;
       const hasManualBreak = (verse.lineBreaks || []).includes(index);
+      const wordColor = segment.wordColors ? segment.wordColors[offset] || "" : "";
       return `
-      <div class="word-column ${selected ? "selected" : ""}" style="--chars:${columnSize(word, verse, index)}" data-word-index="${index}" data-verse-id="${verse.id}">
+      <div class="word-column ${selected ? "selected" : ""} ${wordColor ? `word-color-${wordColor}` : ""}" style="--chars:${columnSize(word, verse, index)}" data-word-index="${index}" data-verse-id="${verse.id}">
         <input class="syntax-input" value="${escapeAttr(segment.syntax[offset])}" data-row="syntax" data-index="${index}" data-verse-id="${verse.id}" data-tab-key="${escapeAttr(tabKey(verse.id, "syntax", index))}" aria-label="syntax for ${word}">
         <button class="greek-word" data-action="select-word" data-index="${index}" data-verse-id="${verse.id}">${escapeHtml(word)}</button>
         <input value="${escapeAttr(segment.morphology[offset])}" data-row="morphology" data-index="${index}" data-verse-id="${verse.id}" data-tab-key="${escapeAttr(tabKey(verse.id, "morphology", index))}" aria-label="morphology for ${word}">
@@ -17318,6 +17441,7 @@
     `;
     }
     return `
+    ${renderWordColorPanel()}
     <ol class="page-list">
       ${state.verses.map((verse, index) => `
         <li>
@@ -17329,6 +17453,40 @@
     <button class="wide-button" data-action="clear-page">\u6E05\u7A7A\u672C\u9801\u7B54\u6848</button>
     ${greekTextPanel}
     ${renderLessonPanel()}
+  `;
+  }
+  function renderWordColorPanel() {
+    const selectedVerse = state.verses.find((verse) => verse.id === state.selected.verseId);
+    const selectedWord = selectedVerse && selectedVerse.words[state.selected.wordIndex];
+    if (!selectedVerse || selectedWord == null) {
+      return `
+      <section class="tool-section word-color-panel">
+        <div class="section-title">
+          <p class="label">\u6A19\u6CE8\u984F\u8272</p>
+          <small>\u5148\u9078\u53D6\u4E00\u500B\u5E0C\u81D8\u5B57</small>
+        </div>
+      </section>
+    `;
+    }
+    const activeColor = selectedVerse.wordColors ? selectedVerse.wordColors[state.selected.wordIndex] || "" : "";
+    return `
+    <section class="tool-section word-color-panel">
+      <div class="section-title">
+        <p class="label">\u6A19\u6CE8\u984F\u8272</p>
+        <small>${escapeHtml(selectedWord)}</small>
+      </div>
+      <div class="color-swatch-row" role="group" aria-label="\u6A19\u6CE8\u984F\u8272">
+        ${WORD_COLOR_OPTIONS.map((color) => `
+          <button
+            class="color-swatch is-${color.id || "none"} ${activeColor === color.id ? "active" : ""}"
+            data-action="set-word-color"
+            data-word-color="${escapeAttr(color.id)}"
+            aria-label="${color.label}"
+            title="${color.label}"
+          ></button>
+        `).join("")}
+      </div>
+    </section>
   `;
   }
   function renderGreekTextPanel() {
@@ -17645,6 +17803,7 @@
     if (action === "save-standard-answer") saveVerseAsStandardAnswer(button.dataset.verseId);
     if (action === "toggle-standard-answer") toggleStandardAnswer(button.dataset.reference);
     if (action === "select-word") selectWord(button.dataset.verseId, Number(button.dataset.index));
+    if (action === "set-word-color") setSelectedWordColor(button.dataset.wordColor || "");
     if (action === "toggle-line-break") toggleManualLineBreak(button.dataset.verseId, Number(button.dataset.index));
     if (action === "toggle-study-tools") {
       state.showStudyTools = !state.showStudyTools;
@@ -17793,6 +17952,13 @@
     persistActiveDraft();
     renderPreservingSidePanelScroll();
   }
+  function setSelectedWordColor(color) {
+    const { verseId, wordIndex } = state.selected;
+    if (!verseId) return;
+    updateVerse(verseId, (verse) => updateVerseWordColor(verse, wordIndex, color));
+    persistActiveDraft();
+    renderPreservingSidePanelScroll();
+  }
   function updateVerse(verseId, updater) {
     state.verses = state.verses.map((verse) => verse.id === verseId ? updater(verse) : verse);
   }
@@ -17815,8 +17981,10 @@
   function worksheetExportOptions() {
     return {
       verses: state.verses,
+      lessonName: normalizeLessonName(state.lessonName),
       sourceLabel: activeGreekTextSourceLabel(),
       translationMode: state.translationMode,
+      pageOrientation: state.pageOrientation,
       maxColumns: state.printMode ? maxPrintColumns(state.pageOrientation, state.layoutDensity) : maxEditColumns(state.layoutDensity),
       standardAnswers: state.standardAnswers,
       expandedStandardAnswers: state.expandedStandardAnswers

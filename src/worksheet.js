@@ -1,6 +1,6 @@
 import { createVerse } from "./layout.js";
 
-export function createBlankExercise({ id, reference, greek, lineBreaks = [], lineTranslations = {} }) {
+export function createBlankExercise({ id, reference, greek, lineBreaks = [], lineTranslations = {}, wordColors = {} }) {
   return createVerse({
     id,
     reference,
@@ -10,6 +10,7 @@ export function createBlankExercise({ id, reference, greek, lineBreaks = [], lin
     gloss: [],
     translation: "",
     lineBreaks,
-    lineTranslations
+    lineTranslations,
+    wordColors
   });
 }
