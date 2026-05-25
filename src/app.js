@@ -52,7 +52,7 @@ import {
   saveStandardAnswers
 } from "./standard-answers.js";
 import { createTagStore } from "./tags.js";
-import { nextArrowKey, nextHorizontalTabKey } from "./tab-order.js";
+import { nextArrowKey, nextHorizontalTabKey, shouldMoveBetweenInputsByArrowKey } from "./tab-order.js";
 import { createWorksheetDocxBlob } from "./docx-export.js";
 import { formatWorksheetText } from "./text-export.js";
 import { createBlankExercise } from "./worksheet.js";
@@ -633,6 +633,7 @@ function handleInputKeydown(event) {
   rememberKeyboardWordIndex(event.currentTarget);
   if (isImeComposing(event)) return;
   if (isArrowKey(event.key) && !event.altKey && !event.ctrlKey && !event.metaKey) {
+    if (!shouldMoveBetweenInputsByArrowKey({ key: event.key, input: event.currentTarget })) return;
     moveByArrowKey(event);
     return;
   }

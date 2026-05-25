@@ -126,6 +126,7 @@ test("keyboard navigation does not intercept IME composition keys", () => {
   const keydown = functionBody("handleInputKeydown");
 
   assert.match(keydown, /isImeComposing\(event\)/);
+  assert.match(keydown, /shouldMoveBetweenInputsByArrowKey\(\{[\s\S]*key: event\.key,[\s\S]*input: event\.currentTarget/);
   assert.match(appSource, /function isImeComposing\(event\)/);
   assert.match(appSource, /event\.isComposing/);
   assert.match(appSource, /event\.key === "Process"/);

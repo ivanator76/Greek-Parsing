@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { nextArrowKey, nextHorizontalTabKey } from "../src/tab-order.js";
+import { nextArrowKey, nextHorizontalTabKey, shouldMoveBetweenInputsByArrowKey } from "../src/tab-order.js";
 
 test("nextHorizontalTabKey moves parsing inputs right across the same row before moving down", () => {
   const keys = [
@@ -48,4 +48,65 @@ test("nextArrowKey moves up and down between fillable parsing rows for the same 
 test("nextArrowKey moves between the gloss row and the translation row", () => {
   assert.equal(nextArrowKey("verse-1:gloss:2", "ArrowDown", { wordCount: 3 }), "verse-1:translation:");
   assert.equal(nextArrowKey("verse-1:translation:", "ArrowUp", { wordCount: 3, fallbackIndex: 2 }), "verse-1:gloss:2");
+});
+
+test("shouldMoveBetweenInputsByArrowKey lets left and right arrows move inside text first", () => {
+  assert.equal(shouldMoveBetweenInputsByArrowKey({
+    key: "ArrowLeft",
+    value: "VNPA",
+    selectionStart: 4,
+    selectionEnd: 4
+  }), false);
+  assert.equal(shouldMoveBetweenInputsByArrowKey({
+    key: "ArrowLeft",
+    value: "VNPA",
+    selectionStart: 0,
+    selectionEnd: 0
+  }), true);
+  assert.equal(shouldMoveBetweenInputsByArrowKey({
+    key: "ArrowRight",
+    value: "VNPA",
+    selectionStart: 2,
+    selectionEnd: 2
+  }), false);
+  assert.equal(shouldMoveBetweenInputsByArrowKey({
+    key: "ArrowRight",
+    value: "VNPA",
+    selectionStart: 4,
+    selectionEnd: 4
+  }), true);
+});
+
+test("shouldMoveBetweenInputsByArrowKey keeps selections and vertical arrows usable", () => {
+  assert.equal(shouldMoveBetweenInputsByArrowKey({
+    key: "ArrowLeft",
+    value: "VNPA",
+    selectionStart: 1,
+    selectionEnd: 3
+  }), false);
+  assert.equal(shouldMoveBetweenInputsByArrowKey({
+    key: "ArrowDown",
+    value: "VNPA",
+    selectionStart: 2,
+    selectionEnd: 2
+  }), true);
+});
+
+test("shouldMoveBetweenInputsByArrowKey reads caret boundaries from an input element", () => {
+  assert.equal(shouldMoveBetweenInputsByArrowKey({
+    key: "ArrowRight",
+    input: {
+      value: "VNPA",
+      selectionStart: 4,
+      selectionEnd: 4
+    }
+  }), true);
+  assert.equal(shouldMoveBetweenInputsByArrowKey({
+    key: "ArrowLeft",
+    input: {
+      value: "VNPA",
+      selectionStart: 2,
+      selectionEnd: 2
+    }
+  }), false);
 });

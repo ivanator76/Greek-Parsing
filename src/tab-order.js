@@ -36,6 +36,22 @@ export function nextArrowKey(currentKey, direction, { wordCount, fallbackIndex =
   return null;
 }
 
+export function shouldMoveBetweenInputsByArrowKey({
+  key,
+  input,
+  value = "",
+  selectionStart = 0,
+  selectionEnd = selectionStart
+} = {}) {
+  const text = input ? input.value : value;
+  const start = input ? input.selectionStart : selectionStart;
+  const end = input ? input.selectionEnd : selectionEnd;
+  if (start !== end) return false;
+  if (key === "ArrowLeft") return Number(start) <= 0;
+  if (key === "ArrowRight") return Number(start) >= String(text).length;
+  return key === "ArrowUp" || key === "ArrowDown";
+}
+
 function parseKey(key) {
   const parts = String(key).split(":");
   if (parts.length !== 3 || !parts[0] || !parts[1]) return null;

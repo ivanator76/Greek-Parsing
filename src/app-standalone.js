@@ -16762,6 +16762,21 @@
     }
     return null;
   }
+  function shouldMoveBetweenInputsByArrowKey({
+    key,
+    input,
+    value = "",
+    selectionStart = 0,
+    selectionEnd = selectionStart
+  } = {}) {
+    const text = input ? input.value : value;
+    const start2 = input ? input.selectionStart : selectionStart;
+    const end = input ? input.selectionEnd : selectionEnd;
+    if (start2 !== end) return false;
+    if (key === "ArrowLeft") return Number(start2) <= 0;
+    if (key === "ArrowRight") return Number(start2) >= String(text).length;
+    return key === "ArrowUp" || key === "ArrowDown";
+  }
   function parseKey(key) {
     const parts = String(key).split(":");
     if (parts.length !== 3 || !parts[0] || !parts[1]) return null;
@@ -17698,6 +17713,7 @@
     rememberKeyboardWordIndex(event.currentTarget);
     if (isImeComposing(event)) return;
     if (isArrowKey(event.key) && !event.altKey && !event.ctrlKey && !event.metaKey) {
+      if (!shouldMoveBetweenInputsByArrowKey({ key: event.key, input: event.currentTarget })) return;
       moveByArrowKey(event);
       return;
     }
