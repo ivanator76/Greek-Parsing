@@ -31,6 +31,21 @@ test("top toolbar offers a save-as menu beside print", () => {
   assert.match(toolbar, /class="save-menu"[\s\S]*data-action="print"/);
 });
 
+test("projection mode lives in the page side panel for large-screen teaching", () => {
+  const toolbar = functionBody("renderToolbar");
+  const sidePanel = functionBody("renderSidePanel");
+  const actions = functionBody("handleAction");
+
+  assert.doesNotMatch(toolbar, /data-action="toggle-projection"/);
+  assert.match(sidePanel, /renderDensityControl\(\)[\s\S]*data-action="toggle-projection"[\s\S]*data-action="new-practice-page"/);
+  assert.match(sidePanel, /投影模式/);
+  assert.match(appSource, /state\.projectionMode \? "is-projection-mode" : ""/);
+  assert.match(actions, /action === "toggle-projection"[\s\S]*state\.projectionMode = !state\.projectionMode/);
+  assert.match(cssSource, /\.is-projection-mode:not\(\.is-print-mode\)\s*\{[^}]*--greek-font-size:\s*30px;/s);
+  assert.match(cssSource, /\.is-projection-mode:not\(\.is-print-mode\)\s*\{[^}]*--input-height:\s*40px;/s);
+  assert.match(cssSource, /\.is-projection-mode:not\(\.is-print-mode\) \.word-column input\s*\{[^}]*font-size:\s*20px;/s);
+});
+
 test("page side panel places the density range directly below the page heading", () => {
   const sidePanel = functionBody("renderSidePanel");
 
@@ -113,6 +128,18 @@ test("page panel exposes word color swatches for the selected word", () => {
   assert.match(segment, /word-color-\$\{wordColor\}/);
   assert.match(cssSource, /\.color-swatch\.is-yellow/);
   assert.match(cssSource, /\.word-column\.word-color-red/);
+});
+
+test("translation row omits helper text and aligns with parsing cells", () => {
+  const segment = functionBody("renderSegment");
+
+  assert.doesNotMatch(segment, /<span>\$\{state\.translationMode === "line" \? "本行翻譯" : "整句翻譯"\}<\/span>/);
+  assert.doesNotMatch(segment, />本行翻譯</);
+  assert.doesNotMatch(segment, />整句翻譯</);
+  assert.match(segment, /<label class="translation-line">[\s\S]*<b>5<\/b>[\s\S]*<input/);
+  assert.match(cssSource, /\.translation-line\s*\{[^}]*gap:\s*10px;/s);
+  assert.match(cssSource, /\.translation-line\s*\{[^}]*grid-template-columns:\s*26px minmax\(0,\s*1fr\);/s);
+  assert.doesNotMatch(cssSource, /\.translation-line span\s*\{/);
 });
 
 test("editing Greek text persists changes for the active lesson", () => {

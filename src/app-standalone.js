@@ -16640,8 +16640,9 @@
       printMode: false,
       pageOrientation: "landscape",
       layoutDensity: "standard",
-      translationMode: "verse",
+      translationMode: "line",
       reflowMode: false,
+      projectionMode: false,
       sidePanelCollapsed: false,
       customGreekTextVersions: [],
       selectedGreekTextVersionId: "sblgnt",
@@ -17224,7 +17225,7 @@
     applyPrintOrientation();
     const sourceLabel = activeGreekTextSourceLabel();
     app.innerHTML = `
-    <div class="shell ${state.printMode ? "is-print-mode" : ""} ${state.reflowMode ? "is-reflow-mode" : ""} ${state.sidePanelCollapsed ? "is-side-collapsed" : ""} is-${state.pageOrientation} density-${state.layoutDensity}">
+    <div class="shell ${state.printMode ? "is-print-mode" : ""} ${state.reflowMode ? "is-reflow-mode" : ""} ${state.projectionMode ? "is-projection-mode" : ""} ${state.sidePanelCollapsed ? "is-side-collapsed" : ""} is-${state.pageOrientation} density-${state.layoutDensity}">
       ${renderToolbar()}
       <main class="workspace">
         <section class="page-wrap">
@@ -17401,7 +17402,6 @@
       ${state.translationMode === "line" || segment.showTranslation ? `
         <label class="translation-line">
           <b>5</b>
-          <span>${state.translationMode === "line" ? "\u672C\u884C\u7FFB\u8B6F" : "\u6574\u53E5\u7FFB\u8B6F"}</span>
           <input value="${escapeAttr(state.translationMode === "line" ? segment.lineTranslation : segment.translation)}" data-row="${translationRow}" data-line-start="${segment.start}" data-verse-id="${verse.id}" data-tab-key="${escapeAttr(translationKey)}">
         </label>
       ` : ""}
@@ -17423,6 +17423,7 @@
         <button class="side-panel-toggle" data-action="toggle-side-panel" aria-expanded="true">\u6536\u8D77</button>
       </div>
       ${renderDensityControl()}
+      <button class="wide-button projection-button ${state.projectionMode ? "active" : ""}" data-action="toggle-projection">${state.projectionMode ? "\u7D50\u675F\u6295\u5F71" : "\u6295\u5F71\u6A21\u5F0F"}</button>
       <button class="wide-button primary" data-action="new-practice-page">\u7A7A\u767D\u9801</button>
       ${renderPagePanel()}
       <button class="reveal-tools" data-action="toggle-study-tools">${state.showStudyTools ? "\u96B1\u85CF\u8A5E\u5F59 / \u8A9E\u6CD5\u5DE5\u5177" : "\u986F\u793A\u8A5E\u5F59 / \u8A9E\u6CD5\u5DE5\u5177"}</button>
@@ -17803,6 +17804,10 @@
     }
     if (action === "toggle-reflow") {
       state.reflowMode = !state.reflowMode;
+      render();
+    }
+    if (action === "toggle-projection") {
+      state.projectionMode = !state.projectionMode;
       render();
     }
     if (action === "toggle-side-panel") {

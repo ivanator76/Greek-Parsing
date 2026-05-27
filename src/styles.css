@@ -237,6 +237,36 @@ select {
   font-size: 15px;
 }
 
+.is-projection-mode:not(.is-print-mode) {
+  --column-gap: 2px;
+  --greek-font-size: 30px;
+  --input-height: 40px;
+  --word-min-factor: 8px;
+}
+
+.is-projection-mode:not(.is-print-mode) .paper {
+  padding: 48px 42px;
+  width: min(100%, 1480px);
+}
+
+.is-projection-mode:not(.is-print-mode) .word-column {
+  padding: 3px;
+}
+
+.is-projection-mode:not(.is-print-mode) .word-column input {
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.is-projection-mode:not(.is-print-mode) .translation-line input {
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.is-projection-mode:not(.is-print-mode) .row-label-column {
+  font-size: 15px;
+}
+
 .is-landscape .paper {
   min-height: 794px;
   width: 1123px;
@@ -465,15 +495,9 @@ h1 {
 .translation-line {
   align-items: center;
   display: grid;
-  gap: 8px;
-  grid-template-columns: 26px 72px 1fr;
+  gap: 10px;
+  grid-template-columns: 26px minmax(0, 1fr);
   margin-top: 10px;
-}
-
-.translation-line span {
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 700;
 }
 
 .translation-line b {

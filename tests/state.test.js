@@ -10,8 +10,9 @@ test("initial app state starts with no exercises and only the page panel visible
   assert.equal(state.showStudyTools, false);
   assert.equal(state.pageOrientation, "landscape");
   assert.equal(state.layoutDensity, "standard");
-  assert.equal(state.translationMode, "verse");
+  assert.equal(state.translationMode, "line");
   assert.equal(state.reflowMode, false);
+  assert.equal(state.projectionMode, false);
   assert.equal(state.sidePanelCollapsed, false);
   assert.deepEqual(state.customGreekTextVersions, []);
   assert.equal(state.selectedGreekTextVersionId, "sblgnt");

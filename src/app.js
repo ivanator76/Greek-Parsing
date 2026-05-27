@@ -109,7 +109,7 @@ function render() {
   applyPrintOrientation();
   const sourceLabel = activeGreekTextSourceLabel();
   app.innerHTML = `
-    <div class="shell ${state.printMode ? "is-print-mode" : ""} ${state.reflowMode ? "is-reflow-mode" : ""} ${state.sidePanelCollapsed ? "is-side-collapsed" : ""} is-${state.pageOrientation} density-${state.layoutDensity}">
+    <div class="shell ${state.printMode ? "is-print-mode" : ""} ${state.reflowMode ? "is-reflow-mode" : ""} ${state.projectionMode ? "is-projection-mode" : ""} ${state.sidePanelCollapsed ? "is-side-collapsed" : ""} is-${state.pageOrientation} density-${state.layoutDensity}">
       ${renderToolbar()}
       <main class="workspace">
         <section class="page-wrap">
@@ -299,7 +299,6 @@ function renderSegment(verse, segment) {
       ${state.translationMode === "line" || segment.showTranslation ? `
         <label class="translation-line">
           <b>5</b>
-          <span>${state.translationMode === "line" ? "本行翻譯" : "整句翻譯"}</span>
           <input value="${escapeAttr(state.translationMode === "line" ? segment.lineTranslation : segment.translation)}" data-row="${translationRow}" data-line-start="${segment.start}" data-verse-id="${verse.id}" data-tab-key="${escapeAttr(translationKey)}">
         </label>
       ` : ""}
@@ -323,6 +322,7 @@ function renderSidePanel() {
         <button class="side-panel-toggle" data-action="toggle-side-panel" aria-expanded="true">收起</button>
       </div>
       ${renderDensityControl()}
+      <button class="wide-button projection-button ${state.projectionMode ? "active" : ""}" data-action="toggle-projection">${state.projectionMode ? "結束投影" : "投影模式"}</button>
       <button class="wide-button primary" data-action="new-practice-page">空白頁</button>
       ${renderPagePanel()}
       <button class="reveal-tools" data-action="toggle-study-tools">${state.showStudyTools ? "隱藏詞彙 / 語法工具" : "顯示詞彙 / 語法工具"}</button>
@@ -735,6 +735,10 @@ function handleAction(event) {
   }
   if (action === "toggle-reflow") {
     state.reflowMode = !state.reflowMode;
+    render();
+  }
+  if (action === "toggle-projection") {
+    state.projectionMode = !state.projectionMode;
     render();
   }
   if (action === "toggle-side-panel") {
