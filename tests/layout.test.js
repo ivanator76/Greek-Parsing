@@ -86,6 +86,22 @@ test("updateVerseGreek clears manual line breaks because word indexes may change
   assert.deepEqual(updated.lineBreaks, []);
 });
 
+test("updateVerseGreek preserves line layout and colors when word count stays the same", () => {
+  const verse = createVerse({
+    reference: "Mark 3:14",
+    greek: "και εποιησεν δωδεκα",
+    lineBreaks: [1],
+    lineTranslations: { 0: "第一行" },
+    wordColors: { 2: "red" }
+  });
+
+  const updated = updateVerseGreek(verse, "καὶ ἐποίησεν δώδεκα");
+
+  assert.deepEqual(updated.lineBreaks, [1]);
+  assert.deepEqual(updated.lineTranslations, { 0: "第一行" });
+  assert.deepEqual(updated.wordColors, { 2: "red" });
+});
+
 test("toggleLineBreakAfter adds and removes a manual break after a word", () => {
   const verse = createVerse({
     reference: "Mark 3:14",

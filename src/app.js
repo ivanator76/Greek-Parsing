@@ -15,14 +15,8 @@ import {
 import { escapeHtml } from "./escape.js";
 import { preferredVerseIdForEditing } from "./focused-verse.js";
 import {
-  allGreekTextVersions,
-  greekTextSourceLabel,
-  loadCustomGreekTextVersions,
-  loadSelectedGreekTextVersionId,
-  parseImportedGreekTextVersion,
-  saveCustomGreekTextVersions,
-  saveSelectedGreekTextVersionId,
-  selectedGreekTextVersion
+  DEFAULT_GREEK_TEXT_VERSION,
+  greekTextSourceLabel
 } from "./greek-text-versions.js";
 import {
   clearAllAnswers,
@@ -36,6 +30,7 @@ import {
 } from "./lessons.js";
 import { lookupWord, makeExternalLookupUrl } from "./lexicon.js";
 import { books, chaptersFor, getGreekText, referenceFor, versesFor } from "./nt.js";
+import { OPENGNT_NA28_DIFFERENCES } from "./opengnt-na28-differences.js";
 import {
   applyPracticeDraft,
   clearPracticeDraft,
@@ -78,8 +73,6 @@ state.lexiconLookup = { key: "", status: "idle", result: null };
 state.lessons = loadLessons();
 state.standardAnswers = loadStandardAnswers();
 state.practiceDrafts = loadPracticeDrafts();
-state.customGreekTextVersions = loadCustomGreekTextVersions();
-state.selectedGreekTextVersionId = loadSelectedGreekTextVersionId();
 state.lastKeyboardWordIndex = 0;
 
 const app = document.querySelector("#app");
@@ -87,10 +80,13 @@ const app = document.querySelector("#app");
 start();
 
 function start() {
+  if (globalThis.__greekParsingAppStarted) return;
+  globalThis.__greekParsingAppStarted = true;
   try {
     render();
     document.documentElement.setAttribute("data-app-ready", "true");
   } catch (error) {
+    globalThis.__greekParsingAppStarted = false;
     showStartupError(error);
     throw error;
   }
@@ -129,9 +125,12 @@ function render() {
         </section>
         ${renderSidePanel()}
       </main>
+      ${renderGreekEditor()}
     </div>
   `;
   bindEvents();
+  const greekEditor = app.querySelector("[data-greek-editor]");
+  if (greekEditor) greekEditor.focus();
 }
 
 function renderPreservingSidePanelScroll() {
@@ -191,6 +190,27 @@ function renderEmptyPage() {
     <div class="empty-page">
       <h2>尚未加入經文</h2>
       <p>請在上方選擇新約書卷、章、節，按「新增經文」後，頁面只會載入希臘原文；語法、解析、逐字中文與整句翻譯都會保持空白。</p>
+    </div>
+  `;
+}
+
+function renderGreekEditor() {
+  if (!state.greekEditor) return "";
+  const verse = state.verses.find((item) => item.id === state.greekEditor.verseId);
+  return `
+    <div class="modal-backdrop" role="presentation">
+      <section class="greek-editor-modal" role="dialog" aria-modal="true" aria-labelledby="greek-editor-title">
+        <div class="section-title">
+          <h2 id="greek-editor-title">編輯希臘文${verse ? ` · ${escapeHtml(verse.reference)}` : ""}</h2>
+          <button data-action="cancel-greek-edit" aria-label="關閉希臘文編輯器">×</button>
+        </div>
+        <textarea data-greek-editor rows="7" spellcheck="false">${escapeHtml(state.greekEditor.greek)}</textarea>
+        <p class="panel-note compact">字數不變時會保留手動斷行、逐行翻譯與單字顏色。</p>
+        <div class="modal-actions">
+          <button data-action="cancel-greek-edit">取消</button>
+          <button class="primary" data-action="save-greek-edit">好</button>
+        </div>
+      </section>
     </div>
   `;
 }
@@ -274,13 +294,13 @@ function renderSegment(verse, segment) {
     const wordColor = segment.wordColors ? segment.wordColors[offset] || "" : "";
     return `
       <div class="word-column ${selected ? "selected" : ""} ${wordColor ? `word-color-${wordColor}` : ""}" style="--chars:${columnSize(word, verse, index)}" data-word-index="${index}" data-verse-id="${verse.id}">
-        <input class="syntax-input" value="${escapeAttr(segment.syntax[offset])}" data-row="syntax" data-index="${index}" data-verse-id="${verse.id}" data-tab-key="${escapeAttr(tabKey(verse.id, "syntax", index))}" aria-label="syntax for ${word}">
+        <input class="syntax-input" value="${escapeAttr(segment.syntax[offset])}" data-row="syntax" data-index="${index}" data-verse-id="${verse.id}" data-tab-key="${escapeAttr(tabKey(verse.id, "syntax", index))}" aria-label="syntax for ${escapeAttr(word)}">
         <button class="greek-word" data-action="select-word" data-index="${index}" data-verse-id="${verse.id}">${escapeHtml(word)}</button>
-        <input value="${escapeAttr(segment.morphology[offset])}" data-row="morphology" data-index="${index}" data-verse-id="${verse.id}" data-tab-key="${escapeAttr(tabKey(verse.id, "morphology", index))}" aria-label="morphology for ${word}">
-        <input value="${escapeAttr(segment.gloss[offset])}" data-row="gloss" data-index="${index}" data-verse-id="${verse.id}" data-tab-key="${escapeAttr(tabKey(verse.id, "gloss", index))}" aria-label="gloss for ${word}">
+        <input value="${escapeAttr(segment.morphology[offset])}" data-row="morphology" data-index="${index}" data-verse-id="${verse.id}" data-tab-key="${escapeAttr(tabKey(verse.id, "morphology", index))}" aria-label="morphology for ${escapeAttr(word)}">
+        <input value="${escapeAttr(segment.gloss[offset])}" data-row="gloss" data-index="${index}" data-verse-id="${verse.id}" data-tab-key="${escapeAttr(tabKey(verse.id, "gloss", index))}" aria-label="gloss for ${escapeAttr(word)}">
       </div>
       ${index < verse.words.length - 1 ? `
-        <button class="line-break-toggle ${hasManualBreak ? "active" : ""}" data-action="toggle-line-break" data-index="${index}" data-verse-id="${verse.id}" aria-label="toggle line break after ${word}">↵</button>
+        <button class="line-break-toggle ${hasManualBreak ? "active" : ""}" data-action="toggle-line-break" data-index="${index}" data-verse-id="${verse.id}" aria-label="toggle line break after ${escapeAttr(word)}">↵</button>
       ` : ""}
     `;
   }).join("");
@@ -410,7 +430,6 @@ function renderWordColorPanel() {
 }
 
 function renderGreekTextPanel() {
-  const versions = allGreekTextVersions(state.customGreekTextVersions);
   const active = activeGreekTextVersion();
   return `
     <section class="tool-section greek-text-panel">
@@ -418,22 +437,43 @@ function renderGreekTextPanel() {
         <p class="label">希臘文本</p>
         <small>${escapeHtml(active.name)}</small>
       </div>
-      <label class="stacked-label">
-        使用版本
-        <select data-greek-text-version>
-          ${versions.map((version) => `
-            <option value="${escapeAttr(version.id)}" ${version.id === active.id ? "selected" : ""}>
-              ${escapeHtml(version.name)}
-            </option>
-          `).join("")}
-        </select>
-      </label>
-      <p class="panel-note compact">可匯入你有權使用的 NA28 / UBS5 JSON；資料只存在本機瀏覽器。</p>
-      <div class="button-row wrap">
-        <button data-action="import-greek-text">匯入 NA28 / UBS5</button>
-      </div>
-      <input data-greek-text-import-file type="file" accept="application/json,.json" hidden>
+      <p class="panel-note compact">本 app 固定使用 OpenGNT；文本與本地詞彙解析來自同一份逐字資料。</p>
+      ${renderGreekTextDifferences()}
     </section>
+  `;
+}
+
+function renderGreekTextDifferences() {
+  const data = OPENGNT_NA28_DIFFERENCES;
+  const mainCount = data.main.reduce((sum, item) => sum + item.differences.length, 0);
+  const minorCount = data.minor.reduce((sum, item) => sum + item.differences.length, 0);
+  return `
+    <details class="text-differences">
+      <summary>查看與 NA28 的差異經節</summary>
+      <div class="text-differences-content">
+        <p>依 OpenGNT 官方比較表整理；比較詞以 TANTT 對應詞代表 NA28 讀法，不含 NA28 批判 apparatus。</p>
+        <details open>
+          <summary>主要用字：${mainCount} 字，${data.main.length} 節</summary>
+          <ol class="difference-reading-list">
+            ${data.main.map((item) => `
+              <li>
+                <strong>${escapeHtml(item.reference)}</strong>
+                <span>${item.differences.map((difference) => `${escapeHtml(difference.openGnt)} → ${escapeHtml(difference.comparison)}`).join("；")}</span>
+              </li>
+            `).join("")}
+          </ol>
+        </details>
+        <details>
+          <summary>語序差異：${data.wordOrder.length} 節</summary>
+          <p class="difference-references">${data.wordOrder.map(escapeHtml).join("、")}</p>
+        </details>
+        <details>
+          <summary>次要拼字：${minorCount} 處，${data.minor.length} 節</summary>
+          <p class="difference-references">${data.minor.map((item) => escapeHtml(item.reference)).join("、")}</p>
+        </details>
+        <a href="${escapeAttr(data.source)}" target="_blank" rel="noreferrer">查看 OpenGNT 官方比較資料</a>
+      </div>
+    </details>
   `;
 }
 
@@ -468,7 +508,7 @@ function renderLessonPanel() {
         <div class="section-title">
           <p class="label">資料備份</p>
         </div>
-        <p class="privacy-note">所有課程、草稿、標準答案與匯入文本都只存在本機瀏覽器，不會上傳到伺服器。</p>
+        <p class="privacy-note">所有課程、草稿與標準答案都只存在本機瀏覽器，不會上傳到伺服器。</p>
         <div class="button-row wrap">
           <button data-action="export-data">匯出存檔</button>
           <button data-action="import-data">匯入存檔</button>
@@ -503,10 +543,10 @@ function renderVocabularyTool(selected) {
       <div class="inspector">
         <strong>${escapeHtml(selected.word)}</strong>
         <dl>
-          <div><dt>lemma</dt><dd>${escapeHtml(lookupLemma || lookupStatusText(status))}</dd></div>
-          <div><dt>形態</dt><dd>${escapeHtml(lookupMorphology || lookupStatusText(status))}</dd></div>
-          <div><dt>Strong</dt><dd>${escapeHtml(lookupStrong || lookupStatusText(status))}</dd></div>
-          <div><dt>來源</dt><dd>${lookupSource === "local" ? "本地 MorphGNT Tischendorf" : lookupStatusText(status)}</dd></div>
+          <div><dt>lemma</dt><dd>${escapeHtml(lookupLemma || lookupStatusText(status, lookupSource))}</dd></div>
+          <div><dt>形態</dt><dd>${escapeHtml(lookupMorphology || lookupStatusText(status, lookupSource))}</dd></div>
+          <div><dt>Strong</dt><dd>${escapeHtml(lookupStrong || lookupStatusText(status, lookupSource))}</dd></div>
+          <div><dt>來源</dt><dd>${lookupSource === "local" ? "本地 OpenGNT" : lookupStatusText(status, lookupSource)}</dd></div>
         </dl>
         <div class="button-row">
           <button data-action="lookup-local-word" ${status === "loading" ? "disabled" : ""}>${status === "loading" ? "查詢中" : "查詢本地詞彙"}</button>
@@ -601,20 +641,6 @@ function bindEvents() {
   const importFileInput = app.querySelector("[data-import-file]");
   if (importFileInput) {
     importFileInput.addEventListener("change", handleImportFile);
-  }
-
-  const greekTextPicker = app.querySelector("[data-greek-text-version]");
-  if (greekTextPicker) {
-    greekTextPicker.addEventListener("change", (event) => {
-      state.selectedGreekTextVersionId = event.currentTarget.value;
-      saveSelectedGreekTextVersionId(state.selectedGreekTextVersionId);
-      render();
-    });
-  }
-
-  const greekTextImportFile = app.querySelector("[data-greek-text-import-file]");
-  if (greekTextImportFile) {
-    greekTextImportFile.addEventListener("change", handleGreekTextImportFile);
   }
 
   app.querySelectorAll("button[data-action]").forEach((button) => {
@@ -713,6 +739,8 @@ function handleAction(event) {
   const action = button.dataset.action;
   if (action === "add-verse") addSelectedVerse();
   if (action === "edit-greek") editSelectedGreek();
+  if (action === "cancel-greek-edit") closeGreekEditor();
+  if (action === "save-greek-edit") saveGreekEditor();
   if (action === "set-edit") {
     state.printMode = false;
     render();
@@ -777,10 +805,6 @@ function handleAction(event) {
     const input = app.querySelector("[data-import-file]");
     if (input) input.click();
   }
-  if (action === "import-greek-text") {
-    const input = app.querySelector("[data-greek-text-import-file]");
-    if (input) input.click();
-  }
 }
 
 function choicesFor(kind) {
@@ -813,13 +837,28 @@ function editSelectedGreek() {
     selectedVerseId: state.selected.verseId
   });
   const verse = state.verses.find((item) => item.id === verseId);
-  const nextGreek = window.prompt("編輯希臘文", verse ? verse.greek : "");
-  if (!nextGreek) return;
+  state.greekEditor = {
+    verseId: verse ? verse.id : null,
+    greek: verse ? verse.greek : ""
+  };
+  render();
+}
+
+function closeGreekEditor() {
+  state.greekEditor = null;
+  render();
+}
+
+function saveGreekEditor() {
+  if (!state.greekEditor) return;
+  const input = app.querySelector("[data-greek-editor]");
+  const nextGreek = input ? input.value.trim() : state.greekEditor.greek.trim();
+  const verse = state.verses.find((item) => item.id === state.greekEditor.verseId);
   if (verse) {
     updateVerse(verse.id, (current) => updateVerseGreek(current, nextGreek));
     persistActiveLessonGreekText();
     persistActiveDraft();
-  } else {
+  } else if (nextGreek) {
     const custom = createBlankExercise({
       id: createId(),
       reference: "自訂經文",
@@ -828,6 +867,7 @@ function editSelectedGreek() {
     state.verses = [...state.verses, custom];
     state.selected = { verseId: custom.id, wordIndex: 0 };
   }
+  state.greekEditor = null;
   render();
 }
 
@@ -1034,38 +1074,6 @@ function handleImportFile(event) {
   reader.readAsText(file);
 }
 
-function handleGreekTextImportFile(event) {
-  const [file] = event.currentTarget.files || [];
-  event.currentTarget.value = "";
-  if (!file) return;
-  const reader = new FileReader();
-  reader.addEventListener("load", () => {
-    try {
-      importGreekTextVersion(String(reader.result || ""));
-    } catch (error) {
-      window.alert(error && error.message ? error.message : "匯入希臘文本失敗。");
-    }
-  });
-  reader.addEventListener("error", () => {
-    window.alert("無法讀取這個希臘文本檔案。");
-  });
-  reader.readAsText(file);
-}
-
-function importGreekTextVersion(text) {
-  const imported = parseImportedGreekTextVersion(text);
-  const confirmed = window.confirm(`匯入「${imported.name}」？\n共有 ${Object.keys(imported.verses).length} 節。請確認你有權在本機使用這份希臘文本。`);
-  if (!confirmed) return;
-  state.customGreekTextVersions = [
-    ...state.customGreekTextVersions.filter((version) => version.id !== imported.id),
-    imported
-  ];
-  state.selectedGreekTextVersionId = imported.id;
-  saveCustomGreekTextVersions(state.customGreekTextVersions);
-  saveSelectedGreekTextVersionId(imported.id);
-  render();
-}
-
 function importSavedData(text) {
   const imported = parseDataArchive(text);
   const confirmed = window.confirm(`${importSummary(imported)}\n同 ID 的課程、草稿與同經文標準答案會被匯入資料覆蓋。`);
@@ -1086,10 +1094,7 @@ function importSavedData(text) {
 }
 
 function activeGreekTextVersion() {
-  return selectedGreekTextVersion({
-    versions: allGreekTextVersions(state.customGreekTextVersions),
-    selectedId: state.selectedGreekTextVersionId
-  });
+  return DEFAULT_GREEK_TEXT_VERSION;
 }
 
 function activeGreekTextSourceLabel() {
@@ -1208,8 +1213,9 @@ function selectedLookupKey(selected) {
   return `${reference}.${wordIndex}`;
 }
 
-function lookupStatusText(status) {
+function lookupStatusText(status, source = "") {
   if (status === "loading") return "查詢中";
+  if (source === "unaligned") return "詞形無法與本地資料對齊";
   if (status === "done") return "本地無資料";
   return "尚未查詢";
 }

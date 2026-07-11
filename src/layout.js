@@ -64,15 +64,16 @@ export function wrapVerse(verse, { maxColumns = 8 } = {}) {
 }
 
 export function updateVerseGreek(verse, greek) {
+  const preservesWordLayout = splitWords(greek).length === verse.words.length;
   return createVerse({
     ...verse,
     greek,
     syntax: verse.syntax,
     morphology: verse.morphology,
     gloss: verse.gloss,
-    lineBreaks: [],
-    lineTranslations: {},
-    wordColors: {}
+    lineBreaks: preservesWordLayout ? verse.lineBreaks : [],
+    lineTranslations: preservesWordLayout ? verse.lineTranslations : {},
+    wordColors: preservesWordLayout ? verse.wordColors : {}
   });
 }
 

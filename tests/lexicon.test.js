@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { formatMorphology, lookupWord, makeExternalLookupUrl } from "../src/lexicon.js";
+import { formatMorphology, lookupWord, lookupWordInEntries, makeExternalLookupUrl } from "../src/lexicon.js";
 
 test("lookupWord returns local lemma and morphology when study tools are used", async () => {
   const result = await lookupWord({
@@ -11,8 +11,33 @@ test("lookupWord returns local lemma and morphology when study tools are used", 
 
   assert.equal(result.source, "local");
   assert.equal(result.lemma, "καθώς");
-  assert.equal(result.morphology, "ADV");
+  assert.equal(result.morphology, "CONJ");
   assert.equal(result.strong, "2531");
+});
+
+test("lookupWordInEntries searches nearby matching forms instead of trusting a wrong position", () => {
+  const entries = {
+    "John 1:1.0": { form: "Ἐν", lemma: "ἐν", morphology: "PREP", strong: "1722", normalized: "Εν" },
+    "John 1:1.1": { form: "ἀρχῇ", lemma: "ἀρχή", morphology: "N-DSF", strong: "746", normalized: "αρχη" }
+  };
+
+  const result = lookupWordInEntries(entries, { reference: "John 1:1", wordIndex: 0, word: "ἀρχῇ," });
+
+  assert.equal(result.source, "local");
+  assert.equal(result.lemma, "ἀρχή");
+  assert.equal(result.alignmentOffset, 1);
+});
+
+test("lookupWordInEntries refuses morphology when no nearby form aligns", () => {
+  const entries = {
+    "John 1:1.0": { form: "Ἐν", lemma: "ἐν", morphology: "PREP", strong: "1722", normalized: "Εν" }
+  };
+
+  const result = lookupWordInEntries(entries, { reference: "John 1:1", wordIndex: 0, word: "λόγος" });
+
+  assert.equal(result.source, "unaligned");
+  assert.equal(result.morphology, "");
+  assert.equal(result.lemma, "");
 });
 
 test("formatMorphology uses classroom order for noun-related forms", () => {

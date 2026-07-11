@@ -6,7 +6,7 @@ export async function lookupWord({ reference, wordIndex, word }) {
 }
 
 export function lookupWordInEntries(entries, { reference, wordIndex, word }) {
-  const entry = entries[`${reference}.${wordIndex}`];
+  const entry = alignedEntry(entries, { reference, wordIndex, word });
   if (!entry) {
     return {
       source: "none",
@@ -18,6 +18,17 @@ export function lookupWordInEntries(entries, { reference, wordIndex, word }) {
     };
   }
 
+  if (entry.unaligned) {
+    return {
+      source: "unaligned",
+      word,
+      lemma: "",
+      morphology: "",
+      strong: "",
+      normalized: normalizeLookupWord(word)
+    };
+  }
+
   return {
     source: "local",
     word: entry.form,
@@ -25,8 +36,39 @@ export function lookupWordInEntries(entries, { reference, wordIndex, word }) {
     morphology: formatMorphology(entry.morphology),
     rawMorphology: entry.morphology,
     strong: entry.strong,
-    normalized: entry.normalized
+    normalized: entry.normalized,
+    alignmentOffset: entry.alignmentOffset || 0
   };
+}
+
+function alignedEntry(entries, { reference, wordIndex, word }) {
+  const requested = entries[`${reference}.${wordIndex}`];
+  if (!requested) return null;
+  if (sameWord(requested, word)) return requested;
+
+  for (let distance = 1; distance <= 3; distance += 1) {
+    for (const offset of [-distance, distance]) {
+      const candidate = entries[`${reference}.${wordIndex + offset}`];
+      if (candidate && sameWord(candidate, word)) {
+        return { ...candidate, alignmentOffset: offset };
+      }
+    }
+  }
+  return { unaligned: true };
+}
+
+function sameWord(entry, word) {
+  const expected = normalizeLookupWord(entry.normalized || entry.form);
+  return Boolean(expected) && expected === normalizeLookupWord(word);
+}
+
+export function normalizeLookupWord(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLocaleLowerCase("el")
+    .replace(/ς/g, "σ")
+    .replace(/[^\p{Script=Greek}]/gu, "");
 }
 
 export function formatMorphology(morphology) {

@@ -25,8 +25,8 @@ test("getGreekText can read from a selected imported text map", () => {
   );
 });
 
-test("imported local Tischendorf text includes common classroom references", () => {
-  assert.equal(Object.keys(VERSE_TEXTS).length, 7958);
+test("built-in OpenGNT text includes common classroom references", () => {
+  assert.equal(Object.keys(VERSE_TEXTS).length, 7941);
   assert.match(getGreekText({ book: "Hebrews", chapter: "3", verse: "7" }), /^Διό,/);
   assert.match(getGreekText({ book: "Matthew", chapter: "21", verse: "11" }), /προφήτης/);
   assert.match(getGreekText({ book: "Revelation", chapter: "22", verse: "21" }), /Ἰησοῦ/);

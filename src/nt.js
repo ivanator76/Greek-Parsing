@@ -28,7 +28,7 @@ export const NT_BOOKS = [
   { id: "Revelation", short: "Rev", name: "Revelation", chapters: [20, 29, 22, 11, 14, 17, 17, 13, 21, 11, 19, 17, 18, 20, 8, 21, 18, 24, 21, 15, 27, 21] }
 ];
 
-import { VERSE_TEXTS } from "./nt-texts.js";
+import { OPENGNT_VERSE_TEXTS as VERSE_TEXTS } from "./opengnt-texts.js";
 
 export { VERSE_TEXTS };
 

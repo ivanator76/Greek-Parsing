@@ -86,7 +86,7 @@ test("lesson panel exposes import and export controls for saved data", () => {
   assert.match(lessonPanel, /data-action="export-data"/);
   assert.match(lessonPanel, /data-action="import-data"/);
   assert.match(lessonPanel, /data-import-file/);
-  assert.match(lessonPanel, /所有課程、草稿、標準答案與匯入文本都只存在本機瀏覽器，不會上傳到伺服器。/);
+  assert.match(lessonPanel, /所有課程、草稿與標準答案都只存在本機瀏覽器，不會上傳到伺服器。/);
   assert.match(cssSource, /\.privacy-note\s*\{/);
 });
 
@@ -106,14 +106,41 @@ test("lesson picker loads immediately and keeps deletion beside the menu", () =>
   assert.match(cssSource, /\.delete-lesson-button\s*\{[^}]*color:\s*#b42318;/s);
 });
 
-test("page panel exposes a Greek text import control for user-owned NA28 or UBS5 text", () => {
+test("page panel identifies OpenGNT as the only aligned Greek text", () => {
   const greekTextPanel = functionBody("renderGreekTextPanel");
+  const differences = functionBody("renderGreekTextDifferences");
 
   assert.match(greekTextPanel, /希臘文本/);
-  assert.match(greekTextPanel, /data-greek-text-version/);
-  assert.match(greekTextPanel, /data-action="import-greek-text"/);
-  assert.match(greekTextPanel, /匯入 NA28 \/ UBS5/);
-  assert.match(greekTextPanel, /data-greek-text-import-file/);
+  assert.match(greekTextPanel, /固定使用 OpenGNT/);
+  assert.match(greekTextPanel, /同一份逐字資料/);
+  assert.doesNotMatch(greekTextPanel, /data-greek-text-version/);
+  assert.doesNotMatch(greekTextPanel, /import-greek-text/);
+  assert.match(greekTextPanel, /renderGreekTextDifferences\(\)/);
+  assert.match(differences, /<details class="text-differences">/);
+  assert.match(differences, /查看與 NA28 的差異經節/);
+  assert.match(differences, /主要用字/);
+  assert.match(differences, /語序差異/);
+  assert.match(differences, /次要拼字/);
+  assert.match(cssSource, /\.text-differences-content\s*\{[^}]*max-height:\s*360px;[^}]*overflow:\s*auto;/s);
+});
+
+test("Greek words are escaped inside every generated aria-label", () => {
+  const segment = functionBody("renderSegment");
+
+  assert.match(segment, /aria-label="syntax for \$\{escapeAttr\(word\)\}"/);
+  assert.match(segment, /aria-label="morphology for \$\{escapeAttr\(word\)\}"/);
+  assert.match(segment, /aria-label="gloss for \$\{escapeAttr\(word\)\}"/);
+  assert.match(segment, /aria-label="toggle line break after \$\{escapeAttr\(word\)\}"/);
+});
+
+test("Greek text editing uses a multiline modal instead of prompt", () => {
+  const editor = functionBody("renderGreekEditor");
+  const editAction = functionBody("editSelectedGreek");
+
+  assert.match(editor, /<textarea data-greek-editor/);
+  assert.match(editor, /data-action="save-greek-edit"/);
+  assert.match(editor, /字數不變時會保留手動斷行/);
+  assert.doesNotMatch(editAction, /window\.prompt/);
 });
 
 test("page panel exposes word color swatches for the selected word", () => {

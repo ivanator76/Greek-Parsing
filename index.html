@@ -4,7 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Koine Greek Parsing</title>
-    <link rel="stylesheet" href="src/styles.css?v=20260527-projection-mode">
+    <script>
+      window.__greekParsingAssetVersion = Date.now().toString(36);
+      var stylesheet = document.createElement("link");
+      stylesheet.rel = "stylesheet";
+      stylesheet.href = "src/styles.css?v=" + window.__greekParsingAssetVersion;
+      document.head.appendChild(stylesheet);
+    </script>
   </head>
   <body>
     <div id="app">
@@ -27,10 +33,10 @@
         }
 
         function loadStandaloneFallback() {
-          if (fallbackStarted || document.documentElement.getAttribute("data-app-ready") === "true") return;
+          if (fallbackStarted || window.__greekParsingAppStarted || document.documentElement.getAttribute("data-app-ready") === "true") return;
           fallbackStarted = true;
           var script = document.createElement("script");
-          script.src = "src/app-standalone.js?v=20260527-projection-mode";
+          script.src = "src/app-standalone.js?v=" + window.__greekParsingAssetVersion;
           script.onerror = function () {
             showStartupMessage("App 尚未完成載入", "瀏覽器沒有成功載入 fallback script。");
           };
@@ -57,8 +63,12 @@
         window.setTimeout(function () {
           showStartupMessage("App 尚未完成載入", "瀏覽器沒有成功執行 app.js 或 fallback script。");
         }, 4500);
+
+        var moduleScript = document.createElement("script");
+        moduleScript.type = "module";
+        moduleScript.src = "src/app.js?v=" + window.__greekParsingAssetVersion;
+        document.body.appendChild(moduleScript);
       }());
     </script>
-    <script type="module" src="src/app.js?v=20260527-projection-mode"></script>
   </body>
 </html>

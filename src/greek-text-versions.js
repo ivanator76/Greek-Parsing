@@ -1,28 +1,19 @@
-import { VERSE_TEXTS } from "./nt-texts.js";
-import { SBLGNT_VERSE_TEXTS } from "./sblgnt-texts.js";
+import { OPENGNT_VERSE_TEXTS } from "./opengnt-texts.js";
 
-export const DEFAULT_GREEK_TEXT_VERSION_ID = "sblgnt";
+export const DEFAULT_GREEK_TEXT_VERSION_ID = "opengnt";
 export const CUSTOM_GREEK_TEXT_STORAGE_KEY = "greekParsing.customGreekTexts.v1";
 export const SELECTED_GREEK_TEXT_STORAGE_KEY = "greekParsing.selectedGreekText.v2";
 
 export const DEFAULT_GREEK_TEXT_VERSION = {
   id: DEFAULT_GREEK_TEXT_VERSION_ID,
-  name: "SBL Greek New Testament",
-  source: "SBLGNT © 2010 Society of Biblical Literature and Logos Bible Software; CC BY 4.0",
+  name: "Open Greek New Testament (OpenGNT)",
+  source: "Open Greek New Testament Project by Eliran Wong; CC BY-SA 4.0",
   builtIn: true,
-  verses: SBLGNT_VERSE_TEXTS
+  verses: OPENGNT_VERSE_TEXTS
 };
 
-export const TISCHENDORF_GREEK_TEXT_VERSION = {
-  id: "tischendorf",
-  name: "Tischendorf Greek New Testament",
-  source: "",
-  builtIn: true,
-  verses: VERSE_TEXTS
-};
-
-export function allGreekTextVersions(customVersions = []) {
-  return [DEFAULT_GREEK_TEXT_VERSION, TISCHENDORF_GREEK_TEXT_VERSION, ...customVersions];
+export function allGreekTextVersions() {
+  return [DEFAULT_GREEK_TEXT_VERSION];
 }
 
 export function selectedGreekTextVersion({ versions, selectedId }) {
@@ -48,7 +39,14 @@ export function loadCustomGreekTextVersions(storage = globalThis.localStorage) {
 export function saveCustomGreekTextVersions(versions, storage = globalThis.localStorage) {
   if (!storage) return;
   const portable = versions.map(({ id, name, source, verses }) => ({ id, name, source, verses }));
-  storage.setItem(CUSTOM_GREEK_TEXT_STORAGE_KEY, JSON.stringify(portable));
+  try {
+    storage.setItem(CUSTOM_GREEK_TEXT_STORAGE_KEY, JSON.stringify(portable));
+  } catch (error) {
+    if (error && (error.name === "QuotaExceededError" || error.code === 22)) {
+      throw new Error("瀏覽器本機儲存空間不足，無法儲存這份希臘文本。");
+    }
+    throw error;
+  }
 }
 
 export function loadSelectedGreekTextVersionId(storage = globalThis.localStorage) {
@@ -69,7 +67,7 @@ export function parseImportedGreekTextVersion(text, { id = createVersionId() } =
   const name = String(parsed.name || "").trim();
   if (!name) throw new Error("匯入檔需要 name，例如 NA28 或 UBS5。");
 
-  const verses = normalizeVerseMap(parsed.verses);
+  const { verses, validCount, skippedCount } = normalizeVerseMapWithStats(parsed.verses);
   if (!Object.keys(verses).length) {
     throw new Error("匯入檔需要 verses，格式例如 { \"John.3.16\": \"Οὕτως...\" }。");
   }
@@ -79,7 +77,8 @@ export function parseImportedGreekTextVersion(text, { id = createVersionId() } =
     name,
     source: String(parsed.source || "User-provided Greek text").trim(),
     builtIn: false,
-    verses
+    verses,
+    importStats: { validCount, skippedCount }
   };
 }
 
@@ -103,10 +102,22 @@ function normalizeStoredVersion(value) {
 }
 
 function normalizeVerseMap(verses) {
-  if (!verses || typeof verses !== "object" || Array.isArray(verses)) return {};
-  return Object.fromEntries(Object.entries(verses)
-    .map(([key, value]) => [String(key).trim(), String(value || "").trim()])
-    .filter(([key, value]) => /^[1-3]?\s?[A-Za-z]+(?:\s[A-Za-z]+)?\.\d+\.\d+$/.test(key) && value));
+  return normalizeVerseMapWithStats(verses).verses;
+}
+
+export function normalizeVerseMapWithStats(verses) {
+  if (!verses || typeof verses !== "object" || Array.isArray(verses)) {
+    return { verses: {}, validCount: 0, skippedCount: 0 };
+  }
+  const entries = Object.entries(verses)
+    .map(([key, value]) => [String(key).trim(), String(value || "").trim()]);
+  const validEntries = entries
+    .filter(([key, value]) => Object.prototype.hasOwnProperty.call(OPENGNT_VERSE_TEXTS, key) && value);
+  return {
+    verses: Object.fromEntries(validEntries),
+    validCount: validEntries.length,
+    skippedCount: entries.length - validEntries.length
+  };
 }
 
 function createVersionId() {
